@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agenda + Caja (MVP)
 
-## Getting Started
+Aplicación web "privacy-first" para gestión de turnos y finanzas, diseñada para psicólogos/as independientes.
 
-First, run the development server:
+## Requisitos
+- Node.js 18+
+- npm
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Tecnologías Principales
+- **Framework:** Next.js 15 (App Router)
+- **Lenguaje:** TypeScript
+- **Estilos:** Tailwind CSS
+- **Íconos:** Lucide React
+- **Base de Datos & Auth:** Supabase (Próxima iteración)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Cómo correr el proyecto localmente
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Levantar el servidor de desarrollo:**
+   ```bash
+   npm run dev
+   ```
 
-## Learn More
+3. **Modo Demo (Opcional):**
+   Si no querés crear un usuario ni validar mails, podés usar un login de demostración. Agregá al final de tu `.env.local` la cuenta que previamente registres en el panel de Supabase:
+   ```env
+   DEMO_EMAIL=demo@turnos-gestion.local
+   DEMO_PASSWORD=Gestion_turnos123
+   ```
+   (Estas variables de entorno **no se filtrarán** al HTML porque no empiezan con `NEXT_PUBLIC_`, por lo que son seguras).
 
-To learn more about Next.js, take a look at the following resources:
+4. **Acceder a la app:**
+   Abrí [http://localhost:3000](http://localhost:3000) en tu navegador. Alternativamente podés clickear en "Entrar con Demo" en la página de `/login` si pre-configuraste las variables.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Iteraciones
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Iteración 1:** Setup inicial, dependencias, modelo de base de datos SQL (`supabase/migrations`), documentaciones de diseño y UI Base funcional (placeholders sin lógica).
+- **Iteraciones futuras:** Integración Auth de Supabase (SSR), Funcionalidades CRUD de pacientes/turnos, Reportes exportables.
