@@ -19,10 +19,13 @@ Directorio de pacientes. Estrictamente sin información clínica.
 | Campo | Tipo | Notas / Default |
 | - | - | - |
 | `id` | UUID | PK |
-| `professional_id` | UUID | FK a `profiles(id)` |
+| `tenant_id` | UUID | FK a `tenants(id)` |
 | `name` | TEXT | Nombre completo |
 | `alias` | TEXT | Formato corto o apodo (opcional) |
 | `phone` | TEXT | Número de contacto (opcional) |
+| `email` | TEXT | Correo electrónico (opcional) |
+| `insurance` | TEXT | Obra Social / Prepaga (opcional) |
+| `notes` | TEXT | Notas adicionales (opcional) |
 | `created_at` | TIMESTAMPTZ | |
 | `updated_at` | TIMESTAMPTZ | |
 
