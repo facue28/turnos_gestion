@@ -5,16 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { patientSchema, PatientFormData, PatientData } from "../types/patient.types";
 import { useEffect } from "react";
+import { useCreatePatient, useUpdatePatient } from "../hooks/usePatients";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { Button } from "@/components/ui/button";
 
 interface PatientFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: PatientFormData) => void;
     initialData?: PatientData | null;
-    isPending: boolean;
 }
 
-export default function PatientForm({ open, onOpenChange, onSubmit, initialData, isPending }: PatientFormProps) {
+export default function PatientForm({ open, onOpenChange, initialData }: PatientFormProps) {
+    const { activeTenantId } = useAuth();
+    const { mutateAsync: createPatient, isPending: isCreating } = useCreatePatient(activeTenantId);
+    const { mutateAsync: updatePatient, isPending: isUpdating } = useUpdatePatient(activeTenantId);
+    const isPending = isCreating || isUpdating;
+
     const {
         register,
         handleSubmit,
@@ -27,6 +33,7 @@ export default function PatientForm({ open, onOpenChange, onSubmit, initialData,
             alias: "",
             phone: "",
             email: "",
+            insurance: "",
             notes: "",
         }
     });
@@ -39,13 +46,28 @@ export default function PatientForm({ open, onOpenChange, onSubmit, initialData,
                     alias: initialData.alias || "",
                     phone: initialData.phone || "",
                     email: initialData.email || "",
+                    insurance: initialData.insurance || "",
                     notes: initialData.notes || "",
                 });
             } else {
-                reset({ name: "", alias: "", phone: "", email: "", notes: "" });
+                reset({ name: "", alias: "", phone: "", email: "", insurance: "", notes: "" });
             }
         }
     }, [initialData, open, reset]);
+
+    const handleFormSubmit = async (data: PatientFormData) => {
+        try {
+            if (initialData) {
+                await updatePatient({ id: initialData.id, data });
+            } else {
+                await createPatient(data);
+            }
+            onOpenChange(false);
+            reset();
+        } catch (error) {
+            // Error handling is managed by hooks (toasts)
+        }
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,16 +79,22 @@ export default function PatientForm({ open, onOpenChange, onSubmit, initialData,
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+                <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Nombre completo *</Label>
                         <Input id="name" {...register("name")} placeholder="Ej: Juan Pérez" />
                         {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="alias">Alias / Apodo</Label>
-                        <Input id="alias" {...register("alias")} placeholder="Ej: Juancito" />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="alias">Alias / Apodo</Label>
+                            <Input id="alias" {...register("alias")} placeholder="Ej: Juancito" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="insurance">Obra Social / Prepaga</Label>
+                            <Input id="insurance" {...register("insurance")} placeholder="Ej: OSDE" />
+                        </div>
                     </div>
 
                     <div className="space-y-2">
@@ -86,13 +114,13 @@ export default function PatientForm({ open, onOpenChange, onSubmit, initialData,
                     </div>
 
                     <div className="flex justify-end pt-4">
-                        <button
+                        <Button
                             type="submit"
                             disabled={isPending}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-md font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                            className="bg-indigo-600 font-medium hover:bg-indigo-700 w-full"
                         >
-                            {isPending ? "Guardando..." : "Guardar Paciente"}
-                        </button>
+                            {isPending ? "Guardando..." : initialData ? "Actualizar Paciente" : "Guardar Paciente"}
+                        </Button>
                     </div>
                 </form>
             </DialogContent>
