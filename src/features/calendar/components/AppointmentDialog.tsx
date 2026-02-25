@@ -42,7 +42,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
 
     const [patientId, setPatientId] = useState<string>("");
     const [modality, setModality] = useState<AppointmentModality>("presencial");
-    const [status, setStatus] = useState<AppointmentStatus>("pending");
+    const [status, setStatus] = useState<AppointmentStatus>("Nueva");
     const [price, setPrice] = useState<number | string>(0);
     const [duration, setDuration] = useState<number | string>(60);
     const [notes, setNotes] = useState<string>("");
@@ -58,11 +58,11 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
             setPrice(selectedAppointment.price);
             setDuration(selectedAppointment.duration_min);
             setNotes(selectedAppointment.notes || "");
-            setIsPaid(selectedAppointment.status === 'paid');
+            setIsPaid(selectedAppointment.pay_status === 'Cobrado');
         } else {
             setPatientId("");
             setModality("presencial");
-            setStatus("pending");
+            setStatus("Nueva");
             setPrice(settings?.default_price || 0);
 
             // Prioridad: slotInfo > settings > default 60
@@ -101,7 +101,9 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
             start_at: start.toISOString(),
             end_at: end.toISOString(),
             duration_min: finalDuration,
-            status: isPaid ? 'paid' : status,
+            status: status, // Defaults to 'Nueva'
+            pay_status: isPaid ? 'Cobrado' : 'Pendiente',
+            paid_amount: isPaid ? Number(price) : 0,
             modality,
             price: Number(price) || 0,
             notes: notes.trim() || undefined,

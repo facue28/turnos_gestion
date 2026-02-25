@@ -1,4 +1,5 @@
-export type AppointmentStatus = 'pending' | 'paid' | 'cancelled';
+export type AppointmentStatus = 'Nueva' | 'Realizada' | 'Cancelada' | 'No_asistio' | 'Reprogramada';
+export type PaymentStatus = 'Pendiente' | 'Cobrado' | 'Parcial' | 'OS_pendiente';
 export type AppointmentModality = 'presencial' | 'virtual';
 
 export interface AppointmentData {
@@ -9,6 +10,8 @@ export interface AppointmentData {
     start_at: string;
     end_at: string;
     status: AppointmentStatus;
+    pay_status: PaymentStatus;
+    paid_amount: number;
     modality: AppointmentModality;
     price: number;
     duration_min: number;
