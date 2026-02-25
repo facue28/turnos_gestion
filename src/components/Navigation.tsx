@@ -1,19 +1,17 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CalendarDays, Users, LayoutDashboard, Wallet, Settings, LogOut } from "lucide-react";
-import { logout } from "@/app/actions/auth";
+import { Link, useLocation } from "react-router-dom";
+import { CalendarDays, Users, Settings, LogOut, Calendar, CircleDollarSign } from "lucide-react";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 export function Navigation() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
+  const { signOut } = useAuth();
 
   const navItems = [
-    { href: "/hoy", label: "Hoy", icon: LayoutDashboard },
-    { href: "/calendario", label: "Calendario", icon: CalendarDays },
-    { href: "/pacientes", label: "Pacientes", icon: Users },
-    { href: "/caja", label: "Caja", icon: Wallet },
-    { href: "/ajustes", label: "Ajustes", icon: Settings },
+    { label: 'Hoy', href: '/hoy', icon: CalendarDays },
+    { label: 'Calendario', href: '/calendario', icon: Calendar },
+    { label: 'Pacientes', href: '/pacientes', icon: Users },
+    { label: 'Caja', href: '/caja', icon: CircleDollarSign },
+    { label: 'Ajustes', href: '/ajustes', icon: Settings },
   ];
 
   return (
@@ -30,7 +28,7 @@ export function Navigation() {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                to={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors ${isActive
                   ? "bg-indigo-50 text-indigo-700 font-medium"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -44,15 +42,14 @@ export function Navigation() {
         </nav>
 
         <div className="p-4 border-t">
-          <form action={logout}>
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 px-3 py-2.5 rounded-md text-slate-600 hover:bg-red-50 hover:text-red-700 transition-colors"
-            >
-              <LogOut size={20} />
-              Cerrar Sesión
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="flex w-full items-center gap-3 px-3 py-2.5 rounded-md text-slate-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+          >
+            <LogOut size={20} />
+            Cerrar Sesión
+          </button>
         </div>
       </aside>
 
@@ -64,7 +61,7 @@ export function Navigation() {
           return (
             <Link
               key={item.href}
-              href={item.href}
+              to={item.href}
               className={`flex flex-col items-center justify-center w-full h-full gap-1 ${isActive ? "text-indigo-600" : "text-slate-500"
                 }`}
             >

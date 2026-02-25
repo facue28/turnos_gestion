@@ -1,0 +1,230 @@
+/* Professional Product Design Transformation (Flat 2.0) */
+
+.rbc-calendar {
+    font-family: inherit;
+    color: #334155;
+    /* slate-700 */
+}
+
+/* 1. Header Transformation */
+.rbc-header {
+    border-bottom: 2px solid #cbd5e1 !important;
+    /* slate-300 */
+    background-color: transparent !important;
+    padding: 16px 8px !important;
+    font-weight: 500 !important;
+    color: #64748b !important;
+    /* slate-500 */
+    text-transform: capitalize;
+}
+
+/* Today Circle indicator in header */
+.rbc-header.rbc-today {
+    background-color: transparent !important;
+}
+
+/* Since RBC doesn't have a specific span for the number easily, 
+   we target the likely text content if possible or style the cell */
+.rbc-header.rbc-today::after {
+    display: none;
+    /* remove default */
+}
+
+/* 2. Grid & Separation */
+.rbc-time-view {
+    border: 1px solid #cbd5e1;
+    /* slate-300 */
+    border-radius: 12px;
+    background-color: white;
+    overflow: visible !important;
+    height: auto !important;
+}
+
+.rbc-time-header {
+    margin-right: 0 !important;
+    /* alignment fix */
+}
+
+.rbc-time-content {
+    border-top: 1px solid #cbd5e1;
+    /* slate-300 */
+    overflow-y: visible !important;
+}
+
+.rbc-timeslot-group {
+    border-bottom: 1px solid #e2e8f0 !important;
+    /* slate-200 */
+    min-height: 50px;
+    display: flex;
+    flex-direction: column;
+}
+
+.rbc-day-slot .rbc-time-slot {
+    border-top: none !important;
+    flex: 1 0 0;
+    /* Ensure they expand to fill the group */
+    pointer-events: auto !important;
+    /* Force interactivity */
+}
+
+/* Darker vertical separators for days */
+.rbc-time-content>.rbc-day-slot,
+.rbc-time-header-cell {
+    border-left: 1px solid #cbd5e1 !important;
+    /* slate-300 */
+}
+
+/* 3. Slot Interaction (Senior UX Polish) */
+.rbc-time-slot {
+    cursor: cell;
+    /* Indicator for adding turns */
+    transition: background-color 0.2s ease;
+}
+
+.rbc-day-slot .rbc-time-slot:hover {
+    background-color: rgba(79, 70, 229, 0.04) !important;
+    /* Very subtle indigo/lavender */
+}
+
+/* Disable hover on blocked zones */
+.bg-blocked-column .rbc-time-slot:hover,
+.bg-non-working-day .rbc-time-slot:hover {
+    background-color: transparent !important;
+    cursor: not-allowed;
+}
+
+/* FIX: Ensure events container doesn't block background slot hover */
+.rbc-events-container {
+    pointer-events: none !important;
+    /* Let hover pass through to slots */
+}
+
+/* 4. Event Styling (Rounded-XL + Left Indicator) */
+.rbc-event {
+    pointer-events: auto !important;
+    /* But events themselves must be clickable */
+    border: none !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important;
+    transition: all 0.2s ease;
+    margin: 1px 2px !important;
+}
+
+.rbc-event:hover {
+    transform: scale(1.01);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important;
+}
+
+.rbc-event-content {
+    padding: 0 !important;
+}
+
+/* 4. Blocks (Full Column Background) */
+/* The user wants full column tinting instead of bars */
+.bg-blocked-column {
+    background-color: #f8fafc !important;
+    /* slate-50 */
+    background-image: repeating-linear-gradient(-45deg,
+            transparent,
+            transparent 15px,
+            rgba(241, 245, 249, 0.4) 15px,
+            rgba(241, 245, 249, 0.4) 16px) !important;
+    border-radius: 4px;
+}
+
+.bg-non-working-day {
+    background-color: #f8fafc !important;
+    opacity: 0.8;
+}
+
+/* 5. Special Elements */
+.rbc-current-time-indicator {
+    background-color: #3b82f6;
+    /* blue-500 for a more "Designer" look than red */
+    height: 2px;
+    cursor: help;
+    /* Guide that there's info here */
+}
+
+.rbc-current-time-indicator::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    background-color: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Tooltip for Current Time */
+.rbc-current-time-indicator:hover::after {
+    content: 'Hora actual';
+    position: absolute;
+    left: 12px;
+    top: -10px;
+    background: #1e293b;
+    /* slate-800 */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    z-index: 10;
+}
+
+/* Hide all-day elements */
+.rbc-time-header-content,
+.rbc-allday-cell,
+.rbc-time-header .rbc-row.rbc-time-header-row {
+    display: none !important;
+    height: 0 !important;
+}
+
+/* Toolbar Refinement */
+.rbc-toolbar {
+    margin-bottom: 24px;
+    background-color: white;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+}
+
+.rbc-toolbar button {
+    border: 1px solid transparent;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.rbc-toolbar button:hover {
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.rbc-toolbar button.rbc-active {
+    background-color: #f1f5f9;
+    color: #4f46e5;
+    box-shadow: none;
+    border-color: #e2e8f0;
+}
+
+/* Month View Improvements */
+.rbc-month-view {
+    border: 1px solid #f1f5f9 !important;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.rbc-month-row {
+    border-top: 1px solid #f8fafc !important;
+}
+
+.rbc-day-bg+.rbc-day-bg {
+    border-left: 1px solid #f8fafc !important;
+}
