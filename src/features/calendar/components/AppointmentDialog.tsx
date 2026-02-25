@@ -43,7 +43,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
     const [patientId, setPatientId] = useState<string>("");
     const [modality, setModality] = useState<AppointmentModality>("presencial");
     const [status, setStatus] = useState<AppointmentStatus>("pending");
-    const [price, setPrice] = useState<number>(0);
+    const [price, setPrice] = useState<number | string>(0);
     const [duration, setDuration] = useState<number | string>(60);
     const [notes, setNotes] = useState<string>("");
     const [isPaid, setIsPaid] = useState(false);
@@ -103,7 +103,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
             duration_min: finalDuration,
             status: isPaid ? 'paid' : status,
             modality,
-            price,
+            price: Number(price) || 0,
             notes: notes.trim() || undefined,
         };
 
@@ -169,7 +169,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                         <Input
                             type="number"
                             value={price}
-                            onChange={(e) => setPrice(Number(e.target.value))}
+                            onChange={(e) => setPrice(e.target.value)}
                         />
                     </div>
 
