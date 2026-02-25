@@ -13,7 +13,15 @@ import { useAvailability, useBlocks } from "@/features/settings/hooks/useSetting
 import { CalendarEvent, AppointmentData } from "../types/calendar.types";
 import { detectCollision } from "../utils/collisionUtils";
 import AppointmentDialog from "./AppointmentDialog";
-import { Lock } from "lucide-react";
+import { MoreHorizontal, CheckCircle2, Clock, XCircle, AlertCircle, Lock } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -48,18 +56,73 @@ const CustomEventComponent = ({ event }: { event: CalendarEvent }) => {
         );
     }
 
-    const startStr = format(event.start, "HH:mm");
-    const endStr = format(event.end, "HH:mm");
+    return (
+        <div className="flex items-start justify-between h-full overflow-hidden p-1 gap-1 group">
+            <div className="flex flex-col min-w-0 flex-1 leading-tight">
+                <span className="text-xs font-bold truncate leading-none mb-1">
+                    {event.title}
+                </span>
+                {event.pay_status && (
+                    <span className="text-[9px] font-medium px-1 py-0.5 rounded-full bg-white/50 w-fit truncate">
+                        {event.pay_status}
+                    </span>
+                )}
+            </div>
+
+            <QuickStatusMenu event={event} />
+        </div>
+    );
+};
+
+const QuickStatusMenu = ({ event }: { event: CalendarEvent }) => {
+    const { activeTenantId } = useAuth();
+    const { mutate: updateAppointment } = useUpdateAppointment(activeTenantId);
+
+    const handleUpdateStatus = (pay_status: any) => {
+        // En un caso real aquí se podría abrir un mini modal para el monto si es Parcial
+        // Por ahora simplificamos a los estados directos
+        updateAppointment({
+            id: event.id,
+            data: {
+                pay_status,
+                // Si es Cobrado, asumimos precio total (esto es una simplificación UX)
+                // En el modal completo pueden ajustar el monto exacto
+            }
+        });
+    };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden p-1.5 leading-tight">
-            <span className="text-[10px] font-bold opacity-70 mb-0.5">
-                {startStr} - {endStr}
-            </span>
-            <span className="text-xs font-semibold truncate leading-none">
-                {event.title}
-            </span>
-        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    className="p-1 hover:bg-black/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <MoreHorizontal size={14} />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado de Pago</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleUpdateStatus('Cobrado')} className="flex gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <span>Marcar como Cobrado</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleUpdateStatus('Pendiente')} className="flex gap-2">
+                    <Clock size={14} className="text-amber-500" />
+                    <span>Dejar Pendiente</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleUpdateStatus('Parcial')} className="flex gap-2">
+                    <AlertCircle size={14} className="text-blue-500" />
+                    <span>Cobro Parcial</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Cita</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => updateAppointment({ id: event.id, data: { status: 'Cancelada' } })} className="flex gap-2 text-red-600">
+                    <XCircle size={14} />
+                    <span>Cancelar Cita</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 };
 
@@ -93,7 +156,8 @@ export default function CalendarView() {
                     start: new Date(app.start_at),
                     end: new Date(app.end_at),
                     type: 'appointment',
-                    status: app.status
+                    status: app.status,
+                    pay_status: app.pay_status
                 });
             });
         }
@@ -119,11 +183,11 @@ export default function CalendarView() {
         if (isDemoMode && (!appointments || appointments.length === 0)) {
             const today = new Date();
             const demoEvents: CalendarEvent[] = [
-                { id: 'd1', title: 'Paciente Demo 1', start: new Date(today.setHours(9, 0)), end: new Date(today.setHours(10, 0)), type: 'appointment', status: 'paid' },
-                { id: 'd2', title: 'Paciente Demo 2', start: new Date(today.setHours(11, 30)), end: new Date(today.setHours(12, 30)), type: 'appointment', status: 'pending' },
+                { id: 'd1', title: 'Paciente Demo 1', start: new Date(today.setHours(9, 0)), end: new Date(today.setHours(10, 0)), type: 'appointment', status: 'Nueva', pay_status: 'Cobrado' },
+                { id: 'd2', title: 'Paciente Demo 2', start: new Date(today.setHours(11, 30)), end: new Date(today.setHours(12, 30)), type: 'appointment', status: 'Nueva', pay_status: 'Pendiente' },
                 // { id: 'd3', title: 'Bloqueo Demo', start: new Date(today.setHours(14, 0)), end: new Date(today.setHours(15, 0)), type: 'block' },
-                { id: 'd4', title: 'Paciente Demo 3', start: new Date(addDays(today, 1).setHours(10, 0)), end: new Date(addDays(today, 1).setHours(11, 0)), type: 'appointment', status: 'paid' },
-                { id: 'd5', title: 'Paciente Demo 4', start: new Date(addDays(today, 2).setHours(16, 0)), end: new Date(addDays(today, 2).setHours(17, 0)), type: 'appointment', status: 'pending' },
+                { id: 'd4', title: 'Paciente Demo 3', start: new Date(addDays(today, 1).setHours(10, 0)), end: new Date(addDays(today, 1).setHours(11, 0)), type: 'appointment', status: 'Nueva', pay_status: 'Cobrado' },
+                { id: 'd5', title: 'Paciente Demo 4', start: new Date(addDays(today, 2).setHours(16, 0)), end: new Date(addDays(today, 2).setHours(17, 0)), type: 'appointment', status: 'Nueva', pay_status: 'Pendiente' },
             ];
             calendarEvents.push(...demoEvents);
         }
@@ -164,19 +228,29 @@ export default function CalendarView() {
         let color = '#334155'; // slate-700
 
         if (event.type === 'appointment') {
-            if (event.status === 'paid') {
-                backgroundColor = '#f0fdf4'; // emerald-50/100
+            if (event.pay_status === 'Cobrado') {
+                backgroundColor = '#f0fdf4'; // emerald-50
                 borderLeftColor = '#10b981'; // emerald-500
                 color = '#065f46'; // emerald-800
-            } else if (event.status === 'pending') {
-                backgroundColor = '#fffbeb'; // amber-50/100
+            } else if (event.pay_status === 'Pendiente') {
+                backgroundColor = '#fffbeb'; // amber-50
                 borderLeftColor = '#f59e0b'; // amber-500
                 color = '#92400e'; // amber-800
-            } else {
-                // Default Blueish for others
+            } else if (event.pay_status === 'Parcial') {
                 backgroundColor = '#eff6ff'; // blue-50
                 borderLeftColor = '#3b82f6'; // blue-500
                 color = '#1e40af'; // blue-800
+            } else {
+                backgroundColor = '#f8fafc'; // slate-50
+                borderLeftColor = '#94a3b8'; // slate-400
+                color = '#475569'; // slate-600
+            }
+
+            if (event.status === 'Cancelada') {
+                backgroundColor = '#fef2f2'; // red-50
+                borderLeftColor = '#ef4444'; // red-500
+                color = '#991b1b'; // red-800
+                color = '#991b1b';
             }
         } else if (event.type === 'block') {
             return {

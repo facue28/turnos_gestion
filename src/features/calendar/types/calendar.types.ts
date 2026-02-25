@@ -30,4 +30,5 @@ export interface CalendarEvent {
     resource?: any;
     type: 'appointment' | 'block';
     status?: AppointmentStatus;
+    pay_status?: PaymentStatus;
 }
