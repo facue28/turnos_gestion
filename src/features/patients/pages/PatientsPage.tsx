@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { usePatients, useDeletePatient } from "../hooks/usePatients";
-import { Plus, Search, Phone, Mail, Edit, Trash2, ExternalLink, MessageSquare, MoreHorizontal, User } from "lucide-react";
+import { Plus, Search, Phone, Mail, Edit, Trash2, ExternalLink, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PatientForm from "../components/PatientForm";
 import PatientSheet from "../components/PatientSheet";
 import { PatientData } from "../types/patient.types";
 import { Badge } from "@/components/ui/badge";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function PatientsPage() {
     const { activeTenantId, isDemoMode } = useAuth();
@@ -15,18 +16,21 @@ export default function PatientsPage() {
     const { mutate: deletePatient } = useDeletePatient(activeTenantId);
 
     const [search, setSearch] = useState("");
+    const debouncedSearch = useDebounce(search, 300);
     const [formOpen, setFormOpen] = useState(false);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState<PatientData | null>(null);
 
-    const filteredPatients = patients?.filter((p) => {
-        const term = search.toLowerCase();
-        return (
-            p.name.toLowerCase().includes(term) ||
-            (p.alias && p.alias.toLowerCase().includes(term)) ||
-            (p.phone && p.phone.includes(term))
-        );
-    }) || [];
+    const filteredPatients = useMemo(() => {
+        return patients?.filter((p) => {
+            const term = debouncedSearch.toLowerCase();
+            return (
+                p.name.toLowerCase().includes(term) ||
+                (p.alias && p.alias.toLowerCase().includes(term)) ||
+                (p.phone && p.phone.includes(term))
+            );
+        }) || [];
+    }, [patients, debouncedSearch]);
 
     if (!activeTenantId) {
         return <div className="p-8 text-center text-slate-500">Seleccionando clínica...</div>;
@@ -99,7 +103,7 @@ export default function PatientsPage() {
                         {filteredPatients.map(patient => (
                             <div
                                 key={patient.id}
-                                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 active:scale-[0.98] transition-all"
+                                className={`bg-white p-5 rounded-2xl border shadow-sm flex flex-col gap-4 active:scale-[0.98] transition-all ${patient.is_demo ? 'border-indigo-100' : 'border-slate-200'}`}
                                 onClick={() => handleOpenSheet(patient)}
                             >
                                 <div className="flex justify-between items-start">
@@ -108,7 +112,10 @@ export default function PatientsPage() {
                                             <User size={20} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-900">{patient.name}</h3>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-slate-900">{patient.name}</h3>
+                                                {patient.is_demo && <Badge className="h-5 px-1.5 text-[9px] bg-indigo-500 hover:bg-indigo-500 font-bold uppercase tracking-wider">Demo</Badge>}
+                                            </div>
                                             <p className="text-xs text-slate-500 font-medium tracking-wide flex items-center gap-1.5 uppercase">
                                                 {patient.insurance || "Público / Sin Obra"}
                                             </p>
@@ -167,7 +174,7 @@ export default function PatientsPage() {
                                 {filteredPatients.map(patient => (
                                     <tr
                                         key={patient.id}
-                                        className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                                        className={`group hover:bg-slate-50/50 transition-colors cursor-pointer ${patient.is_demo ? 'bg-indigo-50/30' : ''}`}
                                         onClick={() => handleOpenSheet(patient)}
                                     >
                                         <td className="px-6 py-5">
@@ -176,7 +183,10 @@ export default function PatientsPage() {
                                                     <User size={16} />
                                                 </div>
                                                 <div>
-                                                    <div className="font-bold text-slate-900">{patient.name}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="font-bold text-slate-900">{patient.name}</div>
+                                                        {patient.is_demo && <Badge className="h-4 px-1 text-[8px] bg-indigo-500 hover:bg-indigo-500 font-black uppercase tracking-widest">Demo</Badge>}
+                                                    </div>
                                                     {patient.alias && <div className="text-slate-400 text-[11px] mt-0.5 font-medium uppercase tracking-tight">"{patient.alias}"</div>}
                                                 </div>
                                             </div>

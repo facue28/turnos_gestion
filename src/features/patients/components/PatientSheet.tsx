@@ -3,11 +3,10 @@ import {
     SheetContent,
     SheetHeader,
     SheetTitle,
-    SheetDescription,
 } from "@/components/ui/sheet";
 import { PatientData } from "../types/patient.types";
-import { useAppointments } from "@/features/calendar/hooks/useAppointments";
-import { format, isAfter, parseISO } from "date-fns";
+import { usePatientAppointments } from "@/features/calendar/hooks/useAppointments";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { Phone, Mail, Calendar, CreditCard, ClipboardList, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,14 +20,10 @@ interface PatientSheetProps {
 }
 
 export default function PatientSheet({ patient, open, onOpenChange }: PatientSheetProps) {
-    const { data: appointments } = useAppointments(patient?.tenant_id || null);
-
-    const patientAppointments = appointments
-        ?.filter(app => app.patient_id === patient?.id)
-        .sort((a, b) => parseISO(a.start_at).getTime() - parseISO(b.start_at).getTime()) || [];
-
-    const upcomingAppointments = patientAppointments.filter(app =>
-        isAfter(parseISO(app.start_at), new Date()) && app.status !== 'cancelled'
+    const { data: upcomingAppointments, isLoading: isLoadingApps } = usePatientAppointments(
+        patient?.tenant_id || null,
+        patient?.id,
+        { enabled: open }
     );
 
     if (!patient) return null;
@@ -42,8 +37,13 @@ export default function PatientSheet({ patient, open, onOpenChange }: PatientShe
             <SheetContent className="sm:max-w-md border-l shadow-xl bg-slate-50/50 p-0 flex flex-col h-full">
                 <SheetHeader className="bg-white p-6 border-b shrink-0">
                     <div className="flex justify-between items-start">
-                        <div>
-                            <SheetTitle className="text-2xl font-bold text-slate-900">{patient.name}</SheetTitle>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <SheetTitle className="text-2xl font-bold text-slate-900">{patient.name}</SheetTitle>
+                                {patient.is_demo && (
+                                    <Badge className="bg-indigo-500 hover:bg-indigo-500 text-[9px] font-black uppercase tracking-widest px-1.5 h-5">Demo</Badge>
+                                )}
+                            </div>
                             {patient.alias && (
                                 <p className="text-sm text-slate-500 font-medium">Alias: {patient.alias}</p>
                             )}
@@ -123,7 +123,11 @@ export default function PatientSheet({ patient, open, onOpenChange }: PatientShe
                         {/* Recent History / Upcoming */}
                         <div className="space-y-4">
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Próximos Turnos</h3>
-                            {upcomingAppointments.length === 0 ? (
+                            {isLoadingApps ? (
+                                <div className="p-8 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                    <div className="w-5 h-5 border-2 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+                                </div>
+                            ) : !upcomingAppointments || upcomingAppointments.length === 0 ? (
                                 <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center">
                                     <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                                     <p className="text-sm text-slate-400">No hay turnos pendientes</p>

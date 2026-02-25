@@ -48,3 +48,16 @@ export const useDeleteAppointment = (tenantId: string | null) => {
         }
     });
 };
+export const usePatientAppointments = (tenantId: string | null, patientId: string | undefined, options: { enabled?: boolean } = {}) => {
+    return useQuery({
+        queryKey: ["appointments", tenantId, "patient", patientId],
+        queryFn: async () => {
+            const all = await calendarService.getAppointments(tenantId!);
+            return all
+                .filter(app => app.patient_id === patientId && new Date(app.start_at) > new Date())
+                .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
+                .slice(0, 5);
+        },
+        enabled: !!tenantId && !!patientId && options.enabled,
+    });
+};

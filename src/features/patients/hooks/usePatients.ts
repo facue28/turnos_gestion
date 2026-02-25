@@ -7,7 +7,7 @@ import { PatientData } from "../types/patient.types";
 
 const DEMO_PATIENTS: PatientData[] = [
     {
-        id: "demo-1",
+        id: "550e8400-e21b-41d4-a716-446655440001",
         tenant_id: "demo",
         name: "Lucía Fernández",
         alias: "Lucía",
@@ -15,11 +15,12 @@ const DEMO_PATIENTS: PatientData[] = [
         email: "lucia.f@ejemplo.com",
         insurance: "OSDE 310",
         notes: "Paciente regular, prefiere turnos por la mañana.",
+        is_demo: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     },
     {
-        id: "demo-2",
+        id: "550e8400-e21b-41d4-a716-446655440002",
         tenant_id: "demo",
         name: "Marcos Paz",
         alias: "",
@@ -27,11 +28,12 @@ const DEMO_PATIENTS: PatientData[] = [
         email: "marcos.paz@ejemplo.com",
         insurance: "Galeno Oro",
         notes: "Primera consulta programada.",
+        is_demo: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     },
     {
-        id: "demo-3",
+        id: "550e8400-e21b-41d4-a716-446655440003",
         tenant_id: "demo",
         name: "Elena Rodríguez",
         alias: "Eli",
@@ -39,11 +41,12 @@ const DEMO_PATIENTS: PatientData[] = [
         email: "elena.rod@ejemplo.com",
         insurance: "Swiss Medical",
         notes: "Traer estudios previos.",
+        is_demo: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     },
     {
-        id: "demo-4",
+        id: "550e8400-e21b-41d4-a716-446655440004",
         tenant_id: "demo",
         name: "Julián Gómez",
         alias: "Julio",
@@ -51,11 +54,12 @@ const DEMO_PATIENTS: PatientData[] = [
         email: "jgomez@ejemplo.com",
         insurance: "PAMI",
         notes: "Atención prioritaria.",
+        is_demo: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     },
     {
-        id: "demo-5",
+        id: "550e8400-e21b-41d4-a716-446655440005",
         tenant_id: "demo",
         name: "Sofía Martínez",
         alias: "Sofi",
@@ -63,6 +67,7 @@ const DEMO_PATIENTS: PatientData[] = [
         email: "smartinez@ejemplo.com",
         insurance: "Particular",
         notes: "Control de rutina.",
+        is_demo: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     }
