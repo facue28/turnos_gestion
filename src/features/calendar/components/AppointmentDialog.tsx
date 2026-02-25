@@ -44,7 +44,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
     const [modality, setModality] = useState<AppointmentModality>("presencial");
     const [status, setStatus] = useState<AppointmentStatus>("pending");
     const [price, setPrice] = useState<number>(0);
-    const [duration, setDuration] = useState<number>(60);
+    const [duration, setDuration] = useState<number | string>(60);
     const [notes, setNotes] = useState<string>("");
     const [isPaid, setIsPaid] = useState(false);
     const [showConflictDialog, setShowConflictDialog] = useState(false);
@@ -91,15 +91,16 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
         if (!patientId || !user?.id) return;
 
         const start = slotInfo?.start || new Date(selectedAppointment!.start_at);
-        // Calculamos el end dinámicamente basado en la duración elegida
-        const end = addMinutes(start, duration);
+        // Calculamos el end dinámicamente basado en la duración elegida (con fallback seguro)
+        const finalDuration = Math.max(1, Number(duration) || settings?.default_duration || 60);
+        const end = addMinutes(start, finalDuration);
 
         const payload = {
             professional_id: user.id,
             patient_id: patientId,
             start_at: start.toISOString(),
             end_at: end.toISOString(),
-            duration_min: duration,
+            duration_min: finalDuration,
             status: isPaid ? 'paid' : status,
             modality,
             price,
@@ -157,7 +158,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                             <Input
                                 type="number"
                                 value={duration}
-                                onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))}
+                                onChange={(e) => setDuration(e.target.value)}
                                 min={1}
                             />
                         </div>
