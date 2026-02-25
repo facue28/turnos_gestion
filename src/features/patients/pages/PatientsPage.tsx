@@ -11,8 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/useDebounce";
 
 export default function PatientsPage() {
-    const { activeTenantId, isDemoMode } = useAuth();
-    const { data: patients, isLoading } = usePatients(activeTenantId, isDemoMode);
+    const { activeTenantId, isDemoMode: authIsDemoMode } = useAuth();
+    const [localShowDemo, setLocalShowDemo] = useState(false);
+    const isShowDemoActive = authIsDemoMode || localShowDemo;
+
+    const { data: patients, isLoading } = usePatients(activeTenantId, isShowDemoActive);
     const { mutate: deletePatient } = useDeletePatient(activeTenantId);
 
     const [search, setSearch] = useState("");
@@ -61,16 +64,35 @@ export default function PatientsPage() {
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Pacientes</h1>
                     <p className="text-slate-500 mt-1">Base de datos centralizada de tus pacientes.</p>
                 </div>
-                <Button onClick={() => { setSelectedPatient(null); setFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 shadow-md transition-all px-6">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Paciente
-                </Button>
+                <div className="flex items-center gap-2">
+                    {localShowDemo && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLocalShowDemo(false)}
+                            className="text-slate-400 hover:text-red-500 text-xs"
+                        >
+                            Quitar ejemplos
+                        </Button>
+                    )}
+                    <Button onClick={() => { setSelectedPatient(null); setFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 shadow-md transition-all px-6">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo Paciente
+                    </Button>
+                </div>
             </div>
 
-            {isDemoMode && (
-                <div className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                    Modo Demo Activo: Se han inyectado pacientes de prueba realistas para visualización.
+            {isShowDemoActive && (
+                <div className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                        <span>Modo Demo Activo: Mostrando pacientes de prueba realistas.</span>
+                    </div>
+                    {localShowDemo && (
+                        <Button variant="ghost" size="sm" onClick={() => setLocalShowDemo(false)} className="h-7 text-indigo-600 hover:bg-indigo-100">
+                            Desactivar
+                        </Button>
+                    )}
                 </div>
             )}
 
@@ -90,11 +112,23 @@ export default function PatientsPage() {
                     <p className="text-slate-500 font-medium">Cargando base de pacientes...</p>
                 </div>
             ) : filteredPatients.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
-                    <p className="text-slate-500 font-medium text-lg">No se encontraron pacientes</p>
-                    <p className="text-sm text-slate-400 mt-2">
-                        {search ? "Intenta con otro término de búsqueda." : "Aún no tienes pacientes registrados para esta clínica."}
+                <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300 px-6">
+                    <User className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                    <p className="text-slate-500 font-bold text-lg">No se encontraron pacientes</p>
+                    <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">
+                        {search
+                            ? "Intenta con otro término de búsqueda."
+                            : "Aún no tienes pacientes registrados para esta clínica. Prueba inyectando datos de ejemplo para explorar la interfaz."}
                     </p>
+                    {!search && !isShowDemoActive && (
+                        <Button
+                            variant="outline"
+                            onClick={() => setLocalShowDemo(true)}
+                            className="mt-6 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 px-8"
+                        >
+                            Ver pacientes de ejemplo
+                        </Button>
+                    )}
                 </div>
             ) : (
                 <>

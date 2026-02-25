@@ -81,14 +81,14 @@ export const usePatients = (tenantId: string | null, isDemoMode: boolean = false
     });
 
     const data = useMemo(() => {
-        if (!query.data) return isDemoMode ? DEMO_PATIENTS : [];
+        const baseData = query.data || [];
         if (isDemoMode) {
             // Merge real data with demo data, avoiding duplicates if any demo-id matched
-            const realIds = new Set(query.data.map(p => p.id));
+            const realIds = new Set(baseData.map(p => p.id));
             const uniqueDemo = DEMO_PATIENTS.filter(p => !realIds.has(p.id));
-            return [...query.data, ...uniqueDemo];
+            return [...baseData, ...uniqueDemo];
         }
-        return query.data;
+        return baseData;
     }, [query.data, isDemoMode]);
 
     return { ...query, data };

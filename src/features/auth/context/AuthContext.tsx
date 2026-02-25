@@ -174,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('turnos_active_tenant', id);
     };
 
-    const isDemoMode = activeTenantId === DEMO_TENANT_ID;
+    const isDemoMode = activeTenantId === DEMO_TENANT_ID || user?.email === 'demo@turnos-gestion.local';
 
     const joinDemo = async () => {
         if (!user) return;
