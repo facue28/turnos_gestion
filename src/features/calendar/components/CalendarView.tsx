@@ -156,8 +156,8 @@ export default function CalendarView() {
                     start: new Date(app.start_at),
                     end: new Date(app.end_at),
                     type: 'appointment',
-                    status: app.status,
-                    pay_status: app.pay_status
+                    status: app.status || 'Nueva',
+                    pay_status: app.pay_status || 'Pendiente'
                 });
             });
         }
@@ -250,7 +250,6 @@ export default function CalendarView() {
                 backgroundColor = '#fef2f2'; // red-50
                 borderLeftColor = '#ef4444'; // red-500
                 color = '#991b1b'; // red-800
-                color = '#991b1b';
             }
         } else if (event.type === 'block') {
             return {
