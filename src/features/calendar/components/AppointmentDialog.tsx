@@ -9,7 +9,7 @@ import { PatientSelect } from "@/features/patients/components/PatientSelect";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useCreateAppointment, useUpdateAppointment } from "../hooks/useAppointments";
 import { AppointmentData, AppointmentStatus, AppointmentModality } from "../types/calendar.types";
-import { format } from "date-fns";
+import { format, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { detectCollision } from "../utils/collisionUtils";
 import { BlockData, AvailabilityData } from "../../settings/types/settings.types";
@@ -87,6 +87,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
             patient_id: patientId,
             start_at: start.toISOString(),
             end_at: end.toISOString(),
+            duration_min: Math.max(1, differenceInMinutes(end, start)),
             status: isPaid ? 'paid' : status,
             modality,
             price,

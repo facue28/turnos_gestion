@@ -11,6 +11,7 @@ export interface AppointmentData {
     status: AppointmentStatus;
     modality: AppointmentModality;
     price: number;
+    duration_min: number;
     notes?: string;
     patient?: {
         name: string;
