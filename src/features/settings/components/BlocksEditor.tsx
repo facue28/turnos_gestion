@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useBlocks, useAddBlock, useDeleteBlock, useEditBlock } from "../hooks/useSettings";
@@ -28,11 +30,12 @@ const generateTimeOptions = () => {
 const TIME_OPTIONS = generateTimeOptions();
 
 export default function BlocksEditor() {
-    const { activeTenantId, isDemoMode, user } = useAuth();
-    const { data: blocks, isLoading } = useBlocks(activeTenantId);
-    const { mutate: addBlock, isPending: isAdding } = useAddBlock(activeTenantId);
-    const { mutate: editBlock, isPending: isEditing } = useEditBlock(activeTenantId);
-    const { mutate: deleteBlock, isPending: isDeleting } = useDeleteBlock(activeTenantId);
+    const { isDemoMode, user } = useAuth();
+    const professionalId = user?.id || null;
+    const { data: blocks, isLoading } = useBlocks(professionalId);
+    const { mutate: addBlock, isPending: isAdding } = useAddBlock(professionalId);
+    const { mutate: editBlock, isPending: isEditing } = useEditBlock(professionalId);
+    const { mutate: deleteBlock, isPending: isDeleting } = useDeleteBlock(professionalId);
 
     const formRef = useRef<HTMLFormElement>(null);
 
@@ -235,7 +238,7 @@ export default function BlocksEditor() {
                     <div className="lg:col-span-3">
                         <Button
                             type="submit"
-                            disabled={isSaving || !activeTenantId || !dateRange?.from}
+                            disabled={isSaving || !professionalId || !dateRange?.from}
                             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                         >
                             {isSaving ? "Guardando..." : editingBlockId ? "Guardar Cambios" : "Bloquear Fechas"}

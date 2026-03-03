@@ -1,12 +1,15 @@
+"use client";
+
 import SettingsForm from "../components/SettingsForm";
 import AvailabilityEditor from "../components/AvailabilityEditor";
 import BlocksEditor from "../components/BlocksEditor";
 import { useAuth } from "@/features/auth/context/AuthContext";
 
 export default function SettingsPage() {
-    const { activeTenantId, signOut } = useAuth();
+    const { user, signOut } = useAuth();
+    const professionalId = user?.id || null;
 
-    if (!activeTenantId) {
+    if (!professionalId) {
         return (
             <div className="p-8 flex flex-col items-center justify-center space-y-4 text-center">
                 <p className="text-slate-500">Seleccionando clínica...</p>

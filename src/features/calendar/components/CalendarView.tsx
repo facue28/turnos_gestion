@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { format, parse, startOfWeek, getDay, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
@@ -13,7 +15,8 @@ import { useAvailability, useBlocks } from "@/features/settings/hooks/useSetting
 import { CalendarEvent, AppointmentData } from "../types/calendar.types";
 import { detectCollision } from "../utils/collisionUtils";
 import AppointmentDialog from "./AppointmentDialog";
-import { MoreHorizontal, CheckCircle2, Clock, XCircle, AlertCircle, Lock } from "lucide-react";
+import { MoreHorizontal, CheckCircle2, Clock, XCircle, AlertCircle, Lock, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -47,7 +50,7 @@ const localizer = dateFnsLocalizer({
 
 const DnDCalendar = withDragAndDrop(Calendar as any);
 
-const CustomEventComponent = ({ event }: { event: CalendarEvent }) => {
+const CustomEventComponent = ({ event, onReprogram }: { event: CalendarEvent, onReprogram?: (e: CalendarEvent) => void }) => {
     if (event.type === 'block') {
         return (
             <div className="flex items-center justify-center h-full opacity-40" title={event.title}>
@@ -56,39 +59,79 @@ const CustomEventComponent = ({ event }: { event: CalendarEvent }) => {
         );
     }
 
+    if ((event as any).type === 'appointment_group') {
+        return (
+            <div className="flex flex-col items-center justify-center w-full min-h-[44px] py-1 cursor-pointer group hover:bg-indigo-100 transition-colors duration-200 rounded-md">
+                <span className="block text-sm font-bold text-indigo-700 leading-tight">{event.title}</span>
+                <span className="block text-[10px] text-indigo-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 leading-tight">
+                    Cargar agenda
+                </span>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex items-start justify-between h-full overflow-hidden p-1 gap-1 group">
-            <div className="flex flex-col min-w-0 flex-1 leading-tight">
-                <span className="text-xs font-bold truncate leading-none mb-1">
+        <div className="flex flex-col justify-between h-full bg-transparent overflow-hidden p-1.5 group relative">
+            {/* Contenido principal flex-grow para empujar hacia abajo si hay espacio */}
+            <div className="flex flex-col min-w-0 flex-1 justify-center gap-0.5">
+                <span className="text-[13px] font-bold truncate leading-snug">
                     {event.title}
                 </span>
-                {event.pay_status && (
-                    <span className="text-[9px] font-medium px-1 py-0.5 rounded-full bg-white/50 w-fit truncate">
-                        {event.pay_status}
-                    </span>
-                )}
+
+                <div className="flex flex-wrap gap-1 mt-0.5">
+                    {/* Estado Clínico (solo mostramos si no es 'Nueva' para mantenerlo limpio) */}
+                    {event.status && event.status !== 'Nueva' && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.status === 'Confirmada' ? 'bg-indigo-100/80 text-indigo-700 border-indigo-200' :
+                                event.status === 'Realizada' ? 'bg-indigo-600 text-white border-indigo-700' :
+                                    event.status === 'No_asistio' ? 'bg-red-600 text-white border-red-700' :
+                                        'bg-slate-200 text-slate-700 border-slate-300'
+                            }`}>
+                            {event.status === 'No_asistio' ? 'No asistió' : event.status}
+                        </span>
+                    )}
+
+                    {/* Estado de Pago */}
+                    {event.pay_status && (
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit max-w-full truncate shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.pay_status === 'Cobrado' ? 'bg-emerald-100/90 text-emerald-700 border-emerald-200' :
+                                event.pay_status === 'Pendiente' ? 'bg-amber-100/90 text-amber-700 border-amber-200' :
+                                    event.pay_status === 'Parcial' ? 'bg-blue-100/90 text-blue-700 border-blue-200' :
+                                        'bg-white/60 border-white/50'
+                            }`}>
+                            {event.pay_status}
+                        </span>
+                    )}
+                </div>
             </div>
 
-            <QuickStatusMenu event={event} />
+            {/* Menú de acciones posicionado absolutamente en la esquina superior derecha */}
+            <div className="absolute top-1 right-1">
+                <QuickStatusMenu event={event} onReprogram={() => onReprogram && onReprogram(event)} />
+            </div>
         </div>
     );
 };
 
-const QuickStatusMenu = ({ event }: { event: CalendarEvent }) => {
-    const { activeTenantId } = useAuth();
-    const { mutate: updateAppointment } = useUpdateAppointment(activeTenantId);
+const QuickStatusMenu = ({ event, onReprogram }: { event: CalendarEvent, onReprogram?: () => void }) => {
+    const { user } = useAuth();
+    const professionalId = user?.id || null;
+    const { mutate: updateAppointment } = useUpdateAppointment(professionalId);
 
     const handleUpdateStatus = (pay_status: any) => {
-        // En un caso real aquí se podría abrir un mini modal para el monto si es Parcial
-        // Por ahora simplificamos a los estados directos
         updateAppointment({
             id: event.id,
-            data: {
-                pay_status,
-                // Si es Cobrado, asumimos precio total (esto es una simplificación UX)
-                // En el modal completo pueden ajustar el monto exacto
-            }
+            data: { pay_status }
         });
+    };
+
+    const handleUpdateClinicalStatus = (status: any) => {
+        updateAppointment({
+            id: event.id,
+            data: { status }
+        });
+    };
+
+    const handleCancelAppointment = () => {
+        updateAppointment({ id: event.id, data: { status: 'Cancelada' } });
     };
 
     return (
@@ -102,6 +145,18 @@ const QuickStatusMenu = ({ event }: { event: CalendarEvent }) => {
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado Clínico</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleUpdateClinicalStatus('Confirmada')} className="flex gap-2">
+                    <CheckCircle2 size={14} className="text-indigo-500" />
+                    <span>Marcar Confirmada</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleUpdateClinicalStatus('Realizada')} className="flex gap-2">
+                    <CheckCircle2 size={14} className="text-indigo-700" />
+                    <span>Marcar Realizada</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
                 <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado de Pago</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => handleUpdateStatus('Cobrado')} className="flex gap-2">
                     <CheckCircle2 size={14} className="text-emerald-500" />
@@ -115,9 +170,16 @@ const QuickStatusMenu = ({ event }: { event: CalendarEvent }) => {
                     <AlertCircle size={14} className="text-blue-500" />
                     <span>Cobro Parcial</span>
                 </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Cita</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => updateAppointment({ id: event.id, data: { status: 'Cancelada' } })} className="flex gap-2 text-red-600">
+                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Acciones de Cita</DropdownMenuLabel>
+                {onReprogram && (
+                    <DropdownMenuItem onClick={onReprogram} className="flex gap-2 text-slate-600">
+                        <RefreshCw size={14} />
+                        <span>Reprogramar Cita</span>
+                    </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleCancelAppointment} className="flex gap-2 text-red-600">
                     <XCircle size={14} />
                     <span>Cancelar Cita</span>
                 </DropdownMenuItem>
@@ -127,7 +189,8 @@ const QuickStatusMenu = ({ event }: { event: CalendarEvent }) => {
 };
 
 export default function CalendarView() {
-    const { activeTenantId, isDemoMode } = useAuth();
+    const { isDemoMode, user } = useAuth();
+    const professionalId = user?.id || null;
     const [view, setView] = useState<any>(Views.WEEK);
     const [date, setDate] = useState(new Date());
 
@@ -137,11 +200,25 @@ export default function CalendarView() {
     const [selectedAppointment, setSelectedAppointment] = useState<AppointmentData | null>(null);
     const [showDragConflict, setShowDragConflict] = useState(false);
     const [pendingDragEvent, setPendingDragEvent] = useState<any>(null);
+    const [showClickConflict, setShowClickConflict] = useState(false);
+    const [pendingClickSlot, setPendingClickSlot] = useState<{ start: Date; end: Date } | null>(null);
 
-    const { data: appointments } = useAppointments(activeTenantId);
-    const { mutate: updateAppointment } = useUpdateAppointment(activeTenantId);
-    const { data: availability } = useAvailability(activeTenantId);
-    const { data: blocks } = useBlocks(activeTenantId);
+    const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'reprogram'>('create');
+
+    const handleReprogramMenuClick = (event: CalendarEvent) => {
+        const appointment = appointments?.find(a => a.id === event.id);
+        if (appointment) {
+            setDialogMode('reprogram');
+            setSelectedAppointment(appointment);
+            setSlotInfo(null);
+            setIsDialogOpen(true);
+        }
+    };
+
+    const { data: appointments } = useAppointments(professionalId);
+    const { mutate: updateAppointment } = useUpdateAppointment(professionalId);
+    const { data: availability } = useAvailability(professionalId);
+    const { data: blocks } = useBlocks(professionalId);
 
     // Transform data to CalendarEvents
     const events = useMemo(() => {
@@ -149,17 +226,43 @@ export default function CalendarView() {
 
         // 1. Add Appointments
         if (appointments) {
-            appointments.forEach(app => {
-                calendarEvents.push({
-                    id: app.id,
-                    title: `${app.patient?.name} ${app.patient?.last_name}`,
-                    start: new Date(app.start_at),
-                    end: new Date(app.end_at),
-                    type: 'appointment',
-                    status: app.status || 'Nueva',
-                    pay_status: app.pay_status || 'Pendiente'
+            if (view === Views.MONTH) {
+                const grouped = new Map<number, any[]>();
+                appointments.forEach(app => {
+                    if (app.status !== 'Cancelada') {
+                        const dayStart = startOfDay(new Date(app.start_at)).getTime();
+                        if (!grouped.has(dayStart)) {
+                            grouped.set(dayStart, []);
+                        }
+                        grouped.get(dayStart)!.push(app);
+                    }
                 });
-            });
+
+                grouped.forEach((group, dayStart) => {
+                    calendarEvents.push({
+                        id: `group-${dayStart}`,
+                        title: `${group.length} turno${group.length > 1 ? 's' : ''}`,
+                        start: new Date(dayStart),
+                        end: new Date(dayStart),
+                        type: 'appointment_group' as any,
+                    });
+                });
+            } else {
+                appointments.forEach(app => {
+                    if (app.status !== 'Cancelada') {
+                        calendarEvents.push({
+                            id: app.id,
+                            title: `${app.patient?.name || 'Paciente Sin Nombre'}`,
+                            patientId: app.patient_id,
+                            start: new Date(app.start_at),
+                            end: new Date(app.end_at),
+                            type: 'appointment',
+                            status: app.status || 'Nueva',
+                            pay_status: app.pay_status || 'Pendiente'
+                        });
+                    }
+                });
+            }
         }
 
         // 2. Add Blocks - WE NO LONGER ADD BLOCKS TO THE EVENTS ARRAY
@@ -179,21 +282,10 @@ export default function CalendarView() {
         }
         */
 
-        // 3. Demo Mode Data
-        if (isDemoMode && (!appointments || appointments.length === 0)) {
-            const today = new Date();
-            const demoEvents: CalendarEvent[] = [
-                { id: 'd1', title: 'Paciente Demo 1', start: new Date(today.setHours(9, 0)), end: new Date(today.setHours(10, 0)), type: 'appointment', status: 'Nueva', pay_status: 'Cobrado' },
-                { id: 'd2', title: 'Paciente Demo 2', start: new Date(today.setHours(11, 30)), end: new Date(today.setHours(12, 30)), type: 'appointment', status: 'Nueva', pay_status: 'Pendiente' },
-                // { id: 'd3', title: 'Bloqueo Demo', start: new Date(today.setHours(14, 0)), end: new Date(today.setHours(15, 0)), type: 'block' },
-                { id: 'd4', title: 'Paciente Demo 3', start: new Date(addDays(today, 1).setHours(10, 0)), end: new Date(addDays(today, 1).setHours(11, 0)), type: 'appointment', status: 'Nueva', pay_status: 'Cobrado' },
-                { id: 'd5', title: 'Paciente Demo 4', start: new Date(addDays(today, 2).setHours(16, 0)), end: new Date(addDays(today, 2).setHours(17, 0)), type: 'appointment', status: 'Nueva', pay_status: 'Pendiente' },
-            ];
-            calendarEvents.push(...demoEvents);
-        }
+        // 3. Demo Mode Data - REMOVED: Now using persistent DB patients
 
         return calendarEvents;
-    }, [appointments, blocks, isDemoMode]);
+    }, [appointments, blocks, isDemoMode, view]);
 
     // Calculate dynamic min/max hours based on availability
     const { calendarMin, calendarMax } = useMemo(() => {
@@ -218,7 +310,7 @@ export default function CalendarView() {
         // we set max to the start of the next hour.
         return {
             calendarMin: new Date(0, 0, 0, Math.max(0, minHour), 0, 0),
-            calendarMax: new Date(0, 0, 0, Math.min(23, maxHour + 1), 0, 0)
+            calendarMax: new Date(0, 0, 0, Math.min(24, maxHour + 1), 0, 0)
         };
     }, [availability]);
 
@@ -250,6 +342,23 @@ export default function CalendarView() {
                 backgroundColor = '#fef2f2'; // red-50
                 borderLeftColor = '#ef4444'; // red-500
                 color = '#991b1b'; // red-800
+            } else if (event.status === 'Confirmada') {
+                // Si está confirmada pero NO está cobrada parcialmente ni total, advertencia en ámbar
+                if (event.pay_status === 'Pendiente') {
+                    backgroundColor = '#fef3c7'; // amber-100
+                    borderLeftColor = '#d97706'; // amber-600
+                    color = '#92400e'; // amber-900
+                } else {
+                    backgroundColor = '#f0fdf4'; // emerald-50 
+                    borderLeftColor = '#059669'; // emerald-600
+                    color = '#065f46'; // emerald-800
+                }
+            } else if (event.status === 'Reprogramada') {
+                backgroundColor = '#f3f4f6'; // gray-100
+                borderLeftColor = '#9ca3af'; // gray-400
+                color = '#4b5563'; // gray-600
+                // Opacidad extra para denotar estado archivado/reprogramado
+                backgroundColor = 'rgba(243, 244, 246, 0.7)';
             }
         } else if (event.type === 'block') {
             return {
@@ -260,6 +369,19 @@ export default function CalendarView() {
                     border: 'none',
                     borderRadius: '12px',
                     opacity: 0.5
+                }
+            };
+        } else if ((event as any).type === 'appointment_group') {
+            return {
+                style: {
+                    backgroundColor: '#eef2ff', // indigo-50
+                    border: '1px solid #c7d2fe', // indigo-200
+                    borderRadius: '8px',
+                    padding: '0px',
+                    marginTop: '4px', // Margen suave para despegar del número del día
+                    marginBottom: '4px',
+                    height: 'auto',
+                    overflow: 'hidden'
                 }
             };
         }
@@ -280,15 +402,33 @@ export default function CalendarView() {
     };
 
     const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
+        const hasCollision = detectCollision(start, end, blocks || [], availability || []);
+        if (hasCollision) {
+            setPendingClickSlot({ start, end });
+            setShowClickConflict(true);
+        } else {
+            proceedWithSlotSelection(start, end);
+        }
+    };
+
+    const proceedWithSlotSelection = (start: Date, end: Date) => {
+        setDialogMode('create');
         setSlotInfo({ start, end });
         setSelectedAppointment(null);
         setIsDialogOpen(true);
     };
 
     const handleSelectEvent = (event: CalendarEvent) => {
+        if ((event as any).type === 'appointment_group') {
+            setDate(event.start);
+            setView(Views.DAY);
+            return;
+        }
+
         if (event.type === 'appointment' && appointments) {
             const appointment = appointments.find(a => a.id === event.id);
             if (appointment) {
+                setDialogMode('edit');
                 setSelectedAppointment(appointment);
                 setSlotInfo({ start: new Date(appointment.start_at), end: new Date(appointment.end_at) });
                 setIsDialogOpen(true);
@@ -356,47 +496,45 @@ export default function CalendarView() {
     };
 
     return (
-        <div className="h-auto bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div className="min-h-[800px] h-auto w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4">
             <DnDCalendar
-                {...{
-                    localizer,
-                    events,
-                    startAccessor: "start",
-                    endAccessor: "end",
-                    date,
-                    onNavigate: setDate,
-                    culture: "es",
-                    defaultView: Views.WEEK,
-                    view,
-                    onView: setView,
-                    messages: {
-                        next: "Sig.",
-                        previous: "Ant.",
-                        today: "Hoy",
-                        month: "Mes",
-                        week: "Semana",
-                        day: "Día",
-                        agenda: "Agenda",
-                    },
-                    eventPropGetter: eventStyleGetter as any,
-                    step: 30,
-                    timeslots: 2,
-                    selectable: true,
-                    onSelectSlot: handleSelectSlot,
-                    onSelectEvent: handleSelectEvent as any,
-                    onEventDrop: handleEventDrop as any,
-                    resizable: true,
-                    onEventResize: handleEventDrop as any,
-                    min: calendarMin,
-                    max: calendarMax,
-                    allDaySlot: false,
-                    scrollToTime: new Date(),
-                    className: "rounded-lg overflow-hidden",
-                    dayPropGetter,
-                    components: {
-                        event: CustomEventComponent as any
-                    }
-                } as any}
+                localizer={localizer}
+                events={events}
+                startAccessor="start"
+                endAccessor="end"
+                date={date}
+                onNavigate={setDate}
+                culture="es"
+                defaultView={Views.WEEK}
+                views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+                view={view}
+                onView={setView}
+                messages={{
+                    next: "Sig.",
+                    previous: "Ant.",
+                    today: "Hoy",
+                    month: "Mes",
+                    week: "Semana",
+                    day: "Día",
+                    agenda: "Agenda",
+                }}
+                eventPropGetter={eventStyleGetter as any}
+                step={30}
+                timeslots={2}
+                selectable={true}
+                onSelectSlot={handleSelectSlot}
+                onSelectEvent={handleSelectEvent as any}
+                onEventDrop={handleEventDrop as any}
+                resizable={true}
+                onEventResize={handleEventDrop as any}
+                min={calendarMin}
+                max={calendarMax}
+                scrollToTime={new Date()}
+                className="rounded-lg overflow-hidden"
+                dayPropGetter={dayPropGetter}
+                components={{
+                    event: ((props: any) => <CustomEventComponent {...props} onReprogram={handleReprogramMenuClick} />) as any
+                }}
             />
 
             <AppointmentDialog
@@ -406,6 +544,7 @@ export default function CalendarView() {
                 selectedAppointment={selectedAppointment}
                 blocks={blocks || []}
                 availability={availability || []}
+                mode={dialogMode}
             />
 
             <AlertDialog open={showDragConflict} onOpenChange={setShowDragConflict}>
@@ -413,7 +552,7 @@ export default function CalendarView() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Aviso de Conflicto</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Has soltado el turno en un horario con conflictos.
+                            Has soltado el turno en un horario con conflictos o fuera de tu horario de atención.
                             ¿Deseas confirmar este cambio de todas formas?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -424,6 +563,32 @@ export default function CalendarView() {
                             className="bg-indigo-600 hover:bg-indigo-700"
                         >
                             Confirmar cambio
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showClickConflict} onOpenChange={setShowClickConflict}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Aviso de Conflicto</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Has seleccionado un horario que se encuentra bloqueado o fuera de tus días y horas de atención declarados.
+                            ¿Deseas continuar y agendar un turno aquí de todas formas?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingClickSlot(null)}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setShowClickConflict(false);
+                                if (pendingClickSlot) {
+                                    proceedWithSlotSelection(pendingClickSlot.start, pendingClickSlot.end);
+                                }
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            Sí, proceder a agendar
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

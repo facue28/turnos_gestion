@@ -33,11 +33,10 @@
 /* 2. Grid & Separation */
 .rbc-time-view {
     border: 1px solid #cbd5e1;
-    /* slate-300 */
     border-radius: 12px;
     background-color: white;
-    overflow: visible !important;
     height: auto !important;
+    overflow: visible !important;
 }
 
 .rbc-time-header {
@@ -47,14 +46,14 @@
 
 .rbc-time-content {
     border-top: 1px solid #cbd5e1;
-    /* slate-300 */
-    overflow-y: visible !important;
+    overflow: visible !important;
+    height: auto !important;
 }
 
 .rbc-timeslot-group {
     border-bottom: 1px solid #e2e8f0 !important;
-    /* slate-200 */
-    min-height: 50px;
+    min-height: 80px;
+    /* Incrementado para que los turnos cortos no corten el badge de pago */
     display: flex;
     flex-direction: column;
 }
@@ -86,11 +85,15 @@
     /* Very subtle indigo/lavender */
 }
 
-/* Disable hover on blocked zones */
+/* Show warning cursor on blocked zones, but keep interaction open */
+.bg-blocked-column .rbc-time-slot,
+.bg-non-working-day .rbc-time-slot {
+    cursor: help !important;
+}
+
 .bg-blocked-column .rbc-time-slot:hover,
 .bg-non-working-day .rbc-time-slot:hover {
     background-color: transparent !important;
-    cursor: not-allowed;
 }
 
 /* FIX: Ensure events container doesn't block background slot hover */
@@ -176,10 +179,9 @@
     z-index: 10;
 }
 
-/* Hide all-day elements */
-.rbc-time-header-content,
-.rbc-allday-cell,
-.rbc-time-header .rbc-row.rbc-time-header-row {
+/* Hide all-day row only in time views (Week/Day) so it doesn't break Month view */
+.rbc-time-view .rbc-allday-cell,
+.rbc-time-view .rbc-time-header-content .rbc-row.rbc-row-resource {
     display: none !important;
     height: 0 !important;
 }
@@ -218,11 +220,22 @@
 .rbc-month-view {
     border: 1px solid #f1f5f9 !important;
     border-radius: 12px;
-    overflow: hidden;
 }
 
 .rbc-month-row {
     border-top: 1px solid #f8fafc !important;
+}
+
+/* Color y atenuación para días fuera del mes actual (febrero/abril si estamos en marzo) */
+.rbc-month-view .rbc-off-range-bg {
+    background-color: rgba(241, 245, 249, 0.4) !important;
+    /* slate-100 transparente */
+}
+
+.rbc-month-view .rbc-off-range {
+    color: #cbd5e1 !important;
+    /* slate-300 - Letras más claras */
+    font-weight: 400 !important;
 }
 
 .rbc-day-bg+.rbc-day-bg {

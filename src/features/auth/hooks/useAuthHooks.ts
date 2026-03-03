@@ -1,16 +1,18 @@
+"use client";
+
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../services/authService";
 import { LoginCredentials } from "../types/auth.types";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 export const useLogin = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
 
     return useMutation({
         mutationFn: (credentials: LoginCredentials) => authService.login(credentials),
         onSuccess: () => {
-            navigate("/dashboard");
+            router.push("/calendario");
         },
         onError: (error) => {
             console.error("Login falló:", error);

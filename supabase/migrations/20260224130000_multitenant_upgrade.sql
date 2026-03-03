@@ -1,7 +1,4 @@
--- ============================================================================
--- 1. CREACIÓN DE NUEVAS TABLAS CORE
--- ============================================================================
-CREATE TABLE public.tenants (
+CREATE TABLE IF NOT EXISTS public.tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   plan_type TEXT DEFAULT 'free',
@@ -9,7 +6,7 @@ CREATE TABLE public.tenants (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE public.tenant_users (
+CREATE TABLE IF NOT EXISTS public.tenant_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -45,14 +42,25 @@ BEGIN
   END LOOP;
 END $$;
 
--- ============================================================================
--- 4. MODIFICACIÓN DE TABLAS EXISTENTES
--- ============================================================================
-ALTER TABLE public.profiles ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
-ALTER TABLE public.patients ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
-ALTER TABLE public.appointments ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
-ALTER TABLE public.blocks ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
-ALTER TABLE public.weekly_availability ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+-- Usamos bloques DO para que las adiciones de columnas sean seguras (idempotentes)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='tenant_id') THEN
+        ALTER TABLE public.profiles ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patients' AND column_name='tenant_id') THEN
+        ALTER TABLE public.patients ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='appointments' AND column_name='tenant_id') THEN
+        ALTER TABLE public.appointments ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='blocks' AND column_name='tenant_id') THEN
+        ALTER TABLE public.blocks ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='weekly_availability' AND column_name='tenant_id') THEN
+        ALTER TABLE public.weekly_availability ADD COLUMN tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 UPDATE public.profiles p SET tenant_id = tu.tenant_id FROM public.tenant_users tu WHERE p.id = tu.user_id;
 UPDATE public.patients t SET tenant_id = tu.tenant_id FROM public.tenant_users tu WHERE t.professional_id = tu.user_id;
@@ -131,25 +139,39 @@ DROP POLICY IF EXISTS "Tenant view tenant users" ON public.tenant_users;
 -- Eliminamos la recursion infinita: Un usuario ve los registros de `tenant_users` si es EL MISMO usuario,
 -- o si la fila pertenece a un tenant_id en el cual ESE MISMO usuario (auth.uid()) sí existe.
 CREATE POLICY "Tenant view tenant users" ON public.tenant_users FOR SELECT USING (
-  user_id = auth.uid() OR
-  tenant_id IN (
-    -- Direct access table to avoid RLS loop
-    SELECT tu.tenant_id FROM public.tenant_users tu WHERE tu.user_id = auth.uid()
-  )
+  user_id = auth.uid()
 );
 
 -- FUNCION DE CORTE DE NUDO GORDIANO:
 -- Como RLS sigue rebotando en Supabase Cloud al hacer SELECT sobre tenant_users desde el front, 
 -- creamos un RPC que BYPASSEA el RLS para la validacion inicial del usuario al logearse.
+DROP FUNCTION IF EXISTS public.get_my_tenants();
 CREATE OR REPLACE FUNCTION public.get_my_tenants()
-RETURNS TABLE (tenant_id UUID, role TEXT) AS $$
+RETURNS TABLE (tenant_id UUID, tenant_name TEXT, role TEXT) AS $$
 BEGIN
   RETURN QUERY 
-  SELECT t.tenant_id, t.role 
+  SELECT t.tenant_id, tn.name as tenant_name, t.role 
   FROM public.tenant_users t 
+  JOIN public.tenants tn ON t.tenant_id = tn.id
   WHERE t.user_id = auth.uid();
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- RPC para unirse a la clínica demo
+CREATE OR REPLACE FUNCTION public.join_demo_tenant()
+RETURNS void AS $$
+DECLARE
+  demo_id UUID := '00000000-0000-0000-0000-000000000000';
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'No autenticado';
+  END IF;
+
+  INSERT INTO public.tenant_users (tenant_id, user_id, role)
+  VALUES (demo_id, auth.uid(), 'professional')
+  ON CONFLICT DO NOTHING;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Eliminamos políticas antiguas por precaución
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
@@ -173,27 +195,45 @@ DROP POLICY IF EXISTS "Users can delete own weekly_availability" ON public.weekl
 
 
 -- 6.B NUEVAS POLÍTICAS MULTI-TENANT
+DROP POLICY IF EXISTS "Tenant view profiles" ON public.profiles;
 CREATE POLICY "Tenant view profiles" ON public.profiles FOR SELECT USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant update profiles" ON public.profiles;
 CREATE POLICY "Tenant update profiles" ON public.profiles FOR UPDATE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
 
+DROP POLICY IF EXISTS "Tenant view patients" ON public.patients;
 CREATE POLICY "Tenant view patients" ON public.patients FOR SELECT USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant insert patients" ON public.patients;
 CREATE POLICY "Tenant insert patients" ON public.patients FOR INSERT WITH CHECK (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant update patients" ON public.patients;
 CREATE POLICY "Tenant update patients" ON public.patients FOR UPDATE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant delete patients" ON public.patients;
 CREATE POLICY "Tenant delete patients" ON public.patients FOR DELETE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
 
+DROP POLICY IF EXISTS "Tenant view appointments" ON public.appointments;
 CREATE POLICY "Tenant view appointments" ON public.appointments FOR SELECT USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant insert appointments" ON public.appointments;
 CREATE POLICY "Tenant insert appointments" ON public.appointments FOR INSERT WITH CHECK (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant update appointments" ON public.appointments;
 CREATE POLICY "Tenant update appointments" ON public.appointments FOR UPDATE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant delete appointments" ON public.appointments;
 CREATE POLICY "Tenant delete appointments" ON public.appointments FOR DELETE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
 
+DROP POLICY IF EXISTS "Tenant view blocks" ON public.blocks;
 CREATE POLICY "Tenant view blocks" ON public.blocks FOR SELECT USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant insert blocks" ON public.blocks;
 CREATE POLICY "Tenant insert blocks" ON public.blocks FOR INSERT WITH CHECK (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant update blocks" ON public.blocks;
 CREATE POLICY "Tenant update blocks" ON public.blocks FOR UPDATE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant delete blocks" ON public.blocks;
 CREATE POLICY "Tenant delete blocks" ON public.blocks FOR DELETE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
 
+DROP POLICY IF EXISTS "Tenant view availability" ON public.weekly_availability;
 CREATE POLICY "Tenant view availability" ON public.weekly_availability FOR SELECT USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant insert availability" ON public.weekly_availability;
 CREATE POLICY "Tenant insert availability" ON public.weekly_availability FOR INSERT WITH CHECK (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant update availability" ON public.weekly_availability;
 CREATE POLICY "Tenant update availability" ON public.weekly_availability FOR UPDATE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
+DROP POLICY IF EXISTS "Tenant delete availability" ON public.weekly_availability;
 CREATE POLICY "Tenant delete availability" ON public.weekly_availability FOR DELETE USING (tenant_id IN (SELECT public.get_user_tenant_ids()));
 
 -- ============================================================================

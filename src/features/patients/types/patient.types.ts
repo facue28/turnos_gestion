@@ -6,6 +6,8 @@ export const patientSchema = z.object({
     phone: z.string().optional(),
     email: z.string().email("Email inválido").optional().or(z.literal("")),
     insurance: z.string().optional(),
+    cap: z.string().optional(),
+    city: z.string().optional(),
     notes: z.string().optional(),
 });
 
@@ -13,12 +15,15 @@ export type PatientFormData = z.infer<typeof patientSchema>;
 
 export interface PatientData {
     id: string;
-    tenant_id: string;
+    professional_id: string;
+    tenant_id?: string;
     name: string;
     alias: string | null;
     phone: string | null;
     email: string | null;
     insurance: string | null;
+    cap: string | null;
+    city: string | null;
     notes: string | null;
     is_demo?: boolean;
     created_at: string;

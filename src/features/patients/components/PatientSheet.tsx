@@ -8,7 +8,7 @@ import { PatientData } from "../types/patient.types";
 import { usePatientAppointments } from "@/features/calendar/hooks/useAppointments";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Phone, Mail, Calendar, CreditCard, ClipboardList, MessageSquare } from "lucide-react";
+import { Phone, Mail, Calendar, CreditCard, ClipboardList, MessageSquare, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,12 @@ interface PatientSheetProps {
     patient: PatientData | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onEdit?: (patient: PatientData) => void;
 }
 
-export default function PatientSheet({ patient, open, onOpenChange }: PatientSheetProps) {
+export default function PatientSheet({ patient, open, onOpenChange, onEdit }: PatientSheetProps) {
     const { data: upcomingAppointments, isLoading: isLoadingApps } = usePatientAppointments(
-        patient?.tenant_id || null,
+        patient?.professional_id || null,
         patient?.id,
         { enabled: open }
     );
@@ -101,6 +102,20 @@ export default function PatientSheet({ patient, open, onOpenChange }: PatientShe
                                 ) : (
                                     <p className="text-sm text-slate-400 italic pl-11">Sin email registrado</p>
                                 )}
+
+                                {(patient.cap || patient.city) && (
+                                    <div className="flex items-center gap-3 pt-2 border-t border-slate-50">
+                                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
+                                            <Calendar size={16} className="rotate-90" /> {/* Using something for location */}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-400 font-medium tracking-tight">Ubicación</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                {patient.cap && `[${patient.cap}] `}{patient.city || ""}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -175,6 +190,18 @@ export default function PatientSheet({ patient, open, onOpenChange }: PatientShe
                 </ScrollArea>
 
                 <div className="p-6 bg-white border-t space-y-3 shrink-0">
+                    <Button
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md gap-2"
+                        onClick={() => {
+                            if (patient) {
+                                onOpenChange(false);
+                                onEdit?.(patient);
+                            }
+                        }}
+                    >
+                        <Edit size={16} />
+                        Editar Información
+                    </Button>
                     <Button variant="outline" className="w-full text-slate-600 border-slate-200 shadow-sm" onClick={() => onOpenChange(false)}>
                         Cerrar Ficha
                     </Button>

@@ -1,116 +1,118 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settingsService } from "../services/settingsService";
 import { SettingsFormData, AvailabilityData, BlockData } from "../types/settings.types";
 import { toast } from "sonner";
 
 // Queries
-export const useSettings = (tenantId: string | null) => {
+export const useSettings = (professionalId: string | null) => {
     return useQuery({
-        queryKey: ["settings", tenantId],
-        queryFn: () => settingsService.getProfile(tenantId!),
-        enabled: !!tenantId, // Solo ejecuta si hay tenantId
+        queryKey: ["settings", professionalId],
+        queryFn: () => settingsService.getProfile(professionalId!),
+        enabled: !!professionalId,
     });
 };
 
-export const useAvailability = (tenantId: string | null) => {
+export const useAvailability = (professionalId: string | null) => {
     return useQuery({
-        queryKey: ["availability", tenantId],
-        queryFn: () => settingsService.getAvailability(tenantId!),
-        enabled: !!tenantId,
+        queryKey: ["availability", professionalId],
+        queryFn: () => settingsService.getAvailability(professionalId!),
+        enabled: !!professionalId,
     });
 };
 
-export const useBlocks = (tenantId: string | null) => {
+export const useBlocks = (professionalId: string | null) => {
     return useQuery({
-        queryKey: ["blocks", tenantId],
-        queryFn: () => settingsService.getBlocks(tenantId!),
-        enabled: !!tenantId,
+        queryKey: ["blocks", professionalId],
+        queryFn: () => settingsService.getBlocks(professionalId!),
+        enabled: !!professionalId,
     });
 };
 
 // Mutations
-export const useUpdateSettings = (tenantId: string | null) => {
+export const useUpdateSettings = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: SettingsFormData) => settingsService.updateProfile(tenantId!, data),
+        mutationFn: (data: SettingsFormData) => settingsService.updateProfile(professionalId!, data),
         onSuccess: () => {
             toast.success("Configuración guardada exitosamente");
-            queryClient.invalidateQueries({ queryKey: ["settings", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["settings", professionalId] });
         }
     });
 };
 
-export const useAddAvailability = (tenantId: string | null) => {
+export const useAddAvailability = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: Omit<AvailabilityData, "id" | "tenant_id">) => settingsService.addAvailability(tenantId!, data),
+        mutationFn: (data: Omit<AvailabilityData, "id" | "professional_id">) => settingsService.addAvailability(professionalId!, data),
         onSuccess: () => {
             toast.success("Disponibilidad agregada");
-            queryClient.invalidateQueries({ queryKey: ["availability", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["availability", professionalId] });
         }
     });
 };
 
-export const useDeleteAvailability = (tenantId: string | null) => {
+export const useDeleteAvailability = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: string) => settingsService.deleteAvailability(tenantId!, id),
+        mutationFn: (id: string) => settingsService.deleteAvailability(professionalId!, id),
         onSuccess: () => {
             toast.success("Disponibilidad eliminada");
-            queryClient.invalidateQueries({ queryKey: ["availability", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["availability", professionalId] });
         }
     });
 };
 
-export const useReplaceAvailability = (tenantId: string | null) => {
+export const useReplaceAvailability = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ professionalId, data }: { professionalId: string, data: Omit<AvailabilityData, "id" | "tenant_id" | "professional_id">[] }) =>
-            settingsService.replaceAvailability(tenantId!, professionalId, data),
+        mutationFn: ({ professionalId: profId, data }: { professionalId: string, data: Omit<AvailabilityData, "id" | "professional_id">[] }) =>
+            settingsService.replaceAvailability(professionalId!, profId, data),
         onSuccess: () => {
             toast.success("Horarios actualizados exitosamente");
-            queryClient.invalidateQueries({ queryKey: ["availability", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["availability", professionalId] });
         }
     });
 };
 
-export const useAddBlock = (tenantId: string | null) => {
+export const useAddBlock = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: Omit<BlockData, "id" | "tenant_id">) => settingsService.addBlock(tenantId!, data),
+        mutationFn: (data: Omit<BlockData, "id" | "professional_id">) => settingsService.addBlock(professionalId!, data),
         onSuccess: () => {
             toast.success("Bloqueo registrado");
-            queryClient.invalidateQueries({ queryKey: ["blocks", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["blocks", professionalId] });
         }
     });
 };
 
-export const useDeleteBlock = (tenantId: string | null) => {
+export const useDeleteBlock = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: string) => settingsService.deleteBlock(tenantId!, id),
+        mutationFn: (id: string) => settingsService.deleteBlock(professionalId!, id),
         onSuccess: () => {
             toast.success("Bloqueo eliminado");
-            queryClient.invalidateQueries({ queryKey: ["blocks", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["blocks", professionalId] });
         }
     });
 };
 
-export const useEditBlock = (tenantId: string | null) => {
+export const useEditBlock = (professionalId: string | null) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ id, data }: { id: string, data: Omit<BlockData, "id" | "tenant_id" | "professional_id"> }) =>
-            settingsService.editBlock(tenantId!, id, data),
+        mutationFn: ({ id, data }: { id: string, data: Omit<BlockData, "id" | "professional_id"> }) =>
+            settingsService.editBlock(professionalId!, id, data),
         onSuccess: () => {
             toast.success("Bloqueo actualizado");
-            queryClient.invalidateQueries({ queryKey: ["blocks", tenantId] });
+            queryClient.invalidateQueries({ queryKey: ["blocks", professionalId] });
         }
     });
 };

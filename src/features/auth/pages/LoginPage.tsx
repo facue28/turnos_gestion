@@ -1,3 +1,5 @@
+"use client";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginCredentials } from "../types/auth.types";
@@ -20,8 +22,8 @@ export default function LoginPage() {
     };
 
     const handleDemoLogin = () => {
-        const demoEmail = import.meta.env.VITE_DEMO_EMAIL;
-        const demoPassword = import.meta.env.VITE_DEMO_PASSWORD;
+        const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+        const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
 
         if (!demoEmail || !demoPassword) {
             console.error("Faltan credenciales demo en las variables de entorno");

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { usePatients, useDeletePatient } from "../hooks/usePatients";
@@ -11,12 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/useDebounce";
 
 export default function PatientsPage() {
-    const { activeTenantId, isDemoMode: authIsDemoMode } = useAuth();
-    const [localShowDemo, setLocalShowDemo] = useState(false);
-    const isShowDemoActive = authIsDemoMode || localShowDemo;
+    const { user } = useAuth();
+    const professionalId = user?.id || null;
 
-    const { data: patients, isLoading } = usePatients(activeTenantId, isShowDemoActive);
-    const { mutate: deletePatient } = useDeletePatient(activeTenantId);
+    const { data: patients, isLoading } = usePatients(professionalId);
+    const { mutate: deletePatient } = useDeletePatient(professionalId);
 
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounce(search, 300);
@@ -35,8 +36,8 @@ export default function PatientsPage() {
         }) || [];
     }, [patients, debouncedSearch]);
 
-    if (!activeTenantId) {
-        return <div className="p-8 text-center text-slate-500">Seleccionando clínica...</div>;
+    if (!professionalId) {
+        return <div className="p-8 text-center text-slate-500">Cargando sesión...</div>;
     }
 
     const handleEdit = (patient: PatientData, e: React.MouseEvent) => {
@@ -65,16 +66,6 @@ export default function PatientsPage() {
                     <p className="text-slate-500 mt-1">Base de datos centralizada de tus pacientes.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {localShowDemo && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setLocalShowDemo(false)}
-                            className="text-slate-400 hover:text-red-500 text-xs"
-                        >
-                            Quitar ejemplos
-                        </Button>
-                    )}
                     <Button onClick={() => { setSelectedPatient(null); setFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 shadow-md transition-all px-6">
                         <Plus className="mr-2 h-4 w-4" />
                         Nuevo Paciente
@@ -82,19 +73,6 @@ export default function PatientsPage() {
                 </div>
             </div>
 
-            {isShowDemoActive && (
-                <div className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                        <span>Modo Demo Activo: Mostrando pacientes de prueba realistas.</span>
-                    </div>
-                    {localShowDemo && (
-                        <Button variant="ghost" size="sm" onClick={() => setLocalShowDemo(false)} className="h-7 text-indigo-600 hover:bg-indigo-100">
-                            Desactivar
-                        </Button>
-                    )}
-                </div>
-            )}
 
             <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -120,13 +98,13 @@ export default function PatientsPage() {
                             ? "Intenta con otro término de búsqueda."
                             : "Aún no tienes pacientes registrados para esta clínica. Prueba inyectando datos de ejemplo para explorar la interfaz."}
                     </p>
-                    {!search && !isShowDemoActive && (
+                    {!search && (
                         <Button
                             variant="outline"
-                            onClick={() => setLocalShowDemo(true)}
+                            onClick={() => { setSelectedPatient(null); setFormOpen(true); }}
                             className="mt-6 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 px-8"
                         >
-                            Ver pacientes de ejemplo
+                            Crear primer paciente
                         </Button>
                     )}
                 </div>
@@ -305,6 +283,10 @@ export default function PatientsPage() {
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
                 patient={selectedPatient}
+                onEdit={(patient) => {
+                    setSelectedPatient(patient);
+                    setFormOpen(true);
+                }}
             />
         </div>
     );

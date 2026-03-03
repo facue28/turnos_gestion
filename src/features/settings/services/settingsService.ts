@@ -1,72 +1,70 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/utils/supabase/client";
+const supabase = createClient();
 import { ProfileData, SettingsFormData, AvailabilityData, BlockData } from "../types/settings.types";
 
 export const settingsService = {
     // Profiles
-    async getProfile(tenantId: string): Promise<ProfileData> {
+    async getProfile(professionalId: string): Promise<ProfileData> {
         const { data, error } = await supabase
             .from("profiles")
             .select("*")
-            .eq("tenant_id", tenantId)
+            .eq("id", professionalId)
             .single();
 
         if (error) throw new Error(error.message);
         return data;
     },
 
-    async updateProfile(tenantId: string, payload: SettingsFormData): Promise<void> {
+    async updateProfile(professionalId: string, payload: SettingsFormData): Promise<void> {
         const { error } = await supabase
             .from("profiles")
             .update(payload)
-            .eq("tenant_id", tenantId);
+            .eq("id", professionalId);
 
         if (error) throw new Error(error.message);
     },
 
     // Availability
-    async getAvailability(tenantId: string): Promise<AvailabilityData[]> {
+    async getAvailability(professionalId: string): Promise<AvailabilityData[]> {
         const { data, error } = await supabase
             .from("weekly_availability")
             .select("*")
-            .eq("tenant_id", tenantId);
+            .eq("professional_id", professionalId);
 
         if (error) throw new Error(error.message);
         return data;
     },
 
-    async addAvailability(tenantId: string, payload: Omit<AvailabilityData, "id" | "tenant_id">): Promise<void> {
+    async addAvailability(professionalId: string, payload: Omit<AvailabilityData, "id" | "professional_id">): Promise<void> {
         const { error } = await supabase
             .from("weekly_availability")
-            .insert({ ...payload, tenant_id: tenantId }); // Inject tenant_id manually on insert as asked
+            .insert({ ...payload, professional_id: professionalId });
 
         if (error) throw new Error(error.message);
     },
 
-    async deleteAvailability(tenantId: string, id: string): Promise<void> {
+    async deleteAvailability(professionalId: string, id: string): Promise<void> {
         const { error } = await supabase
             .from("weekly_availability")
             .delete()
             .eq("id", id)
-            .eq("tenant_id", tenantId); // Safeguard
+            .eq("professional_id", professionalId);
 
         if (error) throw new Error(error.message);
     },
 
-    async replaceAvailability(tenantId: string, professionalId: string, payload: Omit<AvailabilityData, "id" | "tenant_id" | "professional_id">[]): Promise<void> {
-        // Delete all existing
+    async replaceAvailability(professionalId: string, _unused: string, payload: Omit<AvailabilityData, "id" | "professional_id">[]): Promise<void> {
+        // Delete all existing for this professional
         const { error: deleteError } = await supabase
             .from("weekly_availability")
             .delete()
-            .eq("tenant_id", tenantId)
             .eq("professional_id", professionalId);
 
         if (deleteError) throw new Error(deleteError.message);
 
         if (payload.length > 0) {
-            // Insert new ones
             const insertPayload = payload.map(p => ({
                 ...p,
-                tenant_id: tenantId,
                 professional_id: professionalId
             }));
             const { error: insertError } = await supabase
@@ -78,41 +76,41 @@ export const settingsService = {
     },
 
     // Blocks
-    async getBlocks(tenantId: string): Promise<BlockData[]> {
+    async getBlocks(professionalId: string): Promise<BlockData[]> {
         const { data, error } = await supabase
             .from("blocks")
             .select("*")
-            .eq("tenant_id", tenantId)
-            .gte("end_at", new Date().toISOString()); // Omitir pasados
+            .eq("professional_id", professionalId)
+            .gte("end_at", new Date().toISOString());
 
         if (error) throw new Error(error.message);
         return data;
     },
 
-    async addBlock(tenantId: string, payload: Omit<BlockData, "id" | "tenant_id">): Promise<void> {
+    async addBlock(professionalId: string, payload: Omit<BlockData, "id" | "professional_id">): Promise<void> {
         const { error } = await supabase
             .from("blocks")
-            .insert({ ...payload, tenant_id: tenantId }); // payload ya trae professional_id de la capa UI
+            .insert({ ...payload, professional_id: professionalId });
 
         if (error) throw new Error(error.message);
     },
 
-    async deleteBlock(tenantId: string, id: string): Promise<void> {
+    async deleteBlock(professionalId: string, id: string): Promise<void> {
         const { error } = await supabase
             .from("blocks")
             .delete()
             .eq("id", id)
-            .eq("tenant_id", tenantId); // Safeguard
+            .eq("professional_id", professionalId);
 
         if (error) throw new Error(error.message);
     },
 
-    async editBlock(tenantId: string, id: string, payload: Omit<BlockData, "id" | "tenant_id" | "professional_id">): Promise<void> {
+    async editBlock(professionalId: string, id: string, payload: Omit<BlockData, "id" | "professional_id">): Promise<void> {
         const { error } = await supabase
             .from("blocks")
             .update(payload)
             .eq("id", id)
-            .eq("tenant_id", tenantId);
+            .eq("professional_id", professionalId);
 
         if (error) throw new Error(error.message);
     }

@@ -1,3 +1,5 @@
+"use client";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
@@ -7,9 +9,10 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { NumberInput } from "@/components/ui/number-input";
 
 export default function SettingsForm() {
-    const { activeTenantId } = useAuth();
-    const { data: profile, isLoading } = useSettings(activeTenantId);
-    const { mutate: updateSettings, isPending } = useUpdateSettings(activeTenantId);
+    const { user } = useAuth();
+    const professionalId = user?.id || null;
+    const { data: profile, isLoading } = useSettings(professionalId);
+    const { mutate: updateSettings, isPending } = useUpdateSettings(professionalId);
 
     const {
         register,
@@ -33,7 +36,7 @@ export default function SettingsForm() {
     }, [profile, reset]);
 
     const onSubmit = (data: SettingsFormData) => {
-        if (!activeTenantId) return;
+        if (!professionalId) return;
         updateSettings(data);
     };
 
@@ -111,7 +114,7 @@ export default function SettingsForm() {
             <div className="pt-2">
                 <button
                     type="submit"
-                    disabled={isSubmitting || isPending || !activeTenantId}
+                    disabled={isSubmitting || isPending || !professionalId}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                 >
                     {(isSubmitting || isPending) ? "Guardando..." : "Guardar Cambios"}

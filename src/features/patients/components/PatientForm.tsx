@@ -1,3 +1,5 @@
+"use client";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -16,15 +18,18 @@ interface PatientFormProps {
 }
 
 export default function PatientForm({ open, onOpenChange, initialData }: PatientFormProps) {
-    const { activeTenantId } = useAuth();
-    const { mutateAsync: createPatient, isPending: isCreating } = useCreatePatient(activeTenantId);
-    const { mutateAsync: updatePatient, isPending: isUpdating } = useUpdatePatient(activeTenantId);
+    const { user } = useAuth();
+    const professionalId = user?.id || null;
+    const { mutateAsync: createPatient, isPending: isCreating } = useCreatePatient(professionalId);
+    const { mutateAsync: updatePatient, isPending: isUpdating } = useUpdatePatient(professionalId);
     const isPending = isCreating || isUpdating;
 
     const {
         register,
         handleSubmit,
         reset,
+        watch,
+        setValue,
         formState: { errors },
     } = useForm<PatientFormData>({
         resolver: zodResolver(patientSchema),
@@ -34,6 +39,8 @@ export default function PatientForm({ open, onOpenChange, initialData }: Patient
             phone: "",
             email: "",
             insurance: "",
+            cap: "",
+            city: "",
             notes: "",
         }
     });
@@ -47,13 +54,34 @@ export default function PatientForm({ open, onOpenChange, initialData }: Patient
                     phone: initialData.phone || "",
                     email: initialData.email || "",
                     insurance: initialData.insurance || "",
+                    cap: initialData.cap || "",
+                    city: initialData.city || "",
                     notes: initialData.notes || "",
                 });
             } else {
-                reset({ name: "", alias: "", phone: "", email: "", insurance: "", notes: "" });
+                reset({ name: "", alias: "", phone: "", email: "", insurance: "", cap: "", city: "", notes: "" });
             }
         }
     }, [initialData, open, reset]);
+
+    // Simulación de búsqueda automática por Cap (C.P.)
+    // Para responder a la duda: Usamos setValue para forzar que el estado de React
+    // sobreescriba cualquier cosa que el navegador haya autocompletado.
+    const capValue = watch("cap");
+    useEffect(() => {
+        if (capValue && capValue.length === 4) { // Ejemplo para CP de 4 dígitos (Argentina u otros)
+            // Aquí se enviaría la "nueva información" (fetch a una API de códigos postales)
+            // Por ahora simulamos una respuesta rápida:
+            const simulatedCity = "Buenos Aires";
+
+            // REEMPLAZO FORZADO: setValue asegura que Hook Form tenga el dato real
+            // y el input se actualice, ganándole a la sugerencia del navegador.
+            setValue("city", simulatedCity, {
+                shouldDirty: true,
+                shouldValidate: true
+            });
+        }
+    }, [capValue, setValue]);
 
     const handleFormSubmit = async (data: PatientFormData) => {
         try {
@@ -106,6 +134,27 @@ export default function PatientForm({ open, onOpenChange, initialData }: Patient
                         <Label htmlFor="email">Correo electrónico</Label>
                         <Input id="email" type="email" {...register("email")} placeholder="juan@ejemplo.com" />
                         {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="cap">Cap (C.P.)</Label>
+                            <Input
+                                id="cap"
+                                {...register("cap")}
+                                placeholder="Ej: 1000"
+                                autoComplete="new-password" // Evita que Chrome sugiera datos guardados agresivamente
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="city">Ciudad</Label>
+                            <Input
+                                id="city"
+                                {...register("city")}
+                                placeholder="Ej: Buenos Aires"
+                                autoComplete="new-password"
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-2">

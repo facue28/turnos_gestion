@@ -14,7 +14,7 @@ export type SettingsFormData = z.infer<typeof settingsSchema>;
 // Types for Supabase DB Returns
 export interface ProfileData {
     id: string;
-    tenant_id: string;
+    tenant_id?: string;
     currency: string;
     default_price: number;
     default_duration: number;
@@ -23,7 +23,8 @@ export interface ProfileData {
 
 export interface AvailabilityData {
     id: string;
-    tenant_id: string;
+    tenant_id?: string;
+    professional_id?: string;
     weekday: number;
     start_time: string;
     end_time: string;
@@ -31,7 +32,7 @@ export interface AvailabilityData {
 
 export interface BlockData {
     id: string;
-    tenant_id: string;
+    tenant_id?: string;
     professional_id: string;
     start_at: string;
     end_at: string;

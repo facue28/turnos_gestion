@@ -20,6 +20,11 @@ CREATE TABLE public.patients (
   name TEXT NOT NULL,
   alias TEXT,
   phone TEXT,
+  email TEXT,
+  insurance TEXT,
+  cap TEXT,
+  city TEXT,
+  notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

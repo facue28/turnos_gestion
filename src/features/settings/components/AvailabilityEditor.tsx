@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useAvailability, useReplaceAvailability } from "../hooks/useSettings";
@@ -31,9 +33,10 @@ const availabilityFormSchema = z.object({
 type AvailabilityFormValues = z.infer<typeof availabilityFormSchema>;
 
 export default function AvailabilityEditor() {
-    const { activeTenantId, isDemoMode, user } = useAuth();
-    const { data: dbAvailabilities, isLoading } = useAvailability(activeTenantId);
-    const { mutateAsync: replaceAvailabilityAsync, isPending: isSaving } = useReplaceAvailability(activeTenantId);
+    const { isDemoMode, user } = useAuth();
+    const professionalId = user?.id || null;
+    const { data: dbAvailabilities, isLoading } = useAvailability(professionalId);
+    const { mutateAsync: replaceAvailabilityAsync, isPending: isSaving } = useReplaceAvailability(professionalId);
 
     const [hasSmartLoaded, setHasSmartLoaded] = useState(false);
     const [newSlotInputs, setNewSlotInputs] = useState<Record<number, { start: string, end: string }>>({});
@@ -190,7 +193,7 @@ export default function AvailabilityEditor() {
                 </div>
                 <Button
                     type="submit"
-                    disabled={isSaving || !isDirty || !activeTenantId}
+                    disabled={isSaving || !professionalId}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2"
                 >
                     <Save className="w-4 h-4" />
@@ -328,7 +331,7 @@ export default function AvailabilityEditor() {
                                             type="button"
                                             size="icon"
                                             variant="secondary"
-                                            disabled={isSaving || !activeTenantId}
+                                            disabled={isSaving || !professionalId}
                                             onClick={() => handleAddBlock(d)}
                                             className="h-10 w-10 shrink-0 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm border border-indigo-100/50 rounded-lg transition-all"
                                             title="Añadir franja horaria local"

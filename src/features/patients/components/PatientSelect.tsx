@@ -28,9 +28,10 @@ export function PatientSelect({ value, onChange }: PatientSelectProps) {
     const [open, setOpen] = React.useState(false);
     const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-    const { activeTenantId } = useAuth();
-    const { data: patients, isLoading } = usePatients(activeTenantId);
-    const { mutate: createPatient, isPending } = useCreatePatient(activeTenantId);
+    const { user } = useAuth();
+    const professionalId = user?.id || null;
+    const { data: patients, isLoading } = usePatients(professionalId);
+    const { mutate: createPatient, isPending } = useCreatePatient(professionalId);
 
     const selectedPatient = patients?.find((p) => p.id === value);
 
