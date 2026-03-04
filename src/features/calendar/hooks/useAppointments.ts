@@ -57,7 +57,11 @@ export const usePatientAppointments = (professionalId: string | null, patientId:
         queryFn: async () => {
             const all = await calendarService.getAppointments(professionalId!);
             return all
-                .filter(app => app.patient_id === patientId && new Date(app.start_at) > new Date())
+                .filter(app => {
+                    const isFuture = new Date(app.start_at) > new Date();
+                    const isValidStatus = ['Nueva', 'Confirmada', 'Reprogramada'].includes(app.status);
+                    return app.patient_id === patientId && isFuture && isValidStatus;
+                })
                 .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
                 .slice(0, 5);
         },

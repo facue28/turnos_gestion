@@ -1,4 +1,5 @@
 import { getFinancialMetrics, getRecentTransactions } from "@/app/actions/payments";
+import { getAppointmentsForExport } from "@/app/actions/appointments";
 import { DateRangeFilter } from "./components/DateRangeFilter";
 import { ExportButton } from "./components/ExportButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,9 +49,10 @@ export default async function CajaPage(props: { searchParams: Promise<{ [key: st
     endOfDay.setHours(23, 59, 59, 999);
 
     // 2. Fetch data
-    const [metrics, transactions] = await Promise.all([
+    const [metrics, transactions, appointmentsForExport] = await Promise.all([
         getFinancialMetrics(startDate, endOfDay),
-        getRecentTransactions(startDate, endOfDay)
+        getRecentTransactions(startDate, endOfDay),
+        getAppointmentsForExport(startDate, endOfDay)
     ]);
 
     return (
@@ -68,7 +70,7 @@ export default async function CajaPage(props: { searchParams: Promise<{ [key: st
 
                 <div className="flex flex-col sm:flex-row gap-3">
                     <DateRangeFilter />
-                    <ExportButton transactions={transactions} startDate={startDate} endDate={endDate} />
+                    <ExportButton transactions={transactions} appointments={appointmentsForExport} startDate={startDate} endDate={endDate} />
                 </div>
             </header>
 
@@ -123,31 +125,32 @@ export default async function CajaPage(props: { searchParams: Promise<{ [key: st
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
                                 <tr>
-                                    <th className="px-6 py-4 font-medium">Fecha</th>
-                                    <th className="px-6 py-4 font-medium">Paciente</th>
-                                    <th className="px-6 py-4 font-medium">Descripción</th>
-                                    <th className="px-6 py-4 font-medium text-center">Método</th>
-                                    <th className="px-6 py-4 font-medium text-right">Monto</th>
+                                    <th className="px-4 md:px-6 py-4 font-medium">Fecha</th>
+                                    <th className="px-4 md:px-6 py-4 font-medium">Paciente</th>
+                                    <th className="px-4 md:px-6 py-4 font-medium hidden md:table-cell">Descripción</th>
+                                    <th className="px-4 md:px-6 py-4 font-medium text-center">Método</th>
+                                    <th className="px-4 md:px-6 py-4 font-medium text-right">Monto</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {transactions.map((t: any) => (
                                     <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
-                                            {format(new Date(t.created_at), "dd/MM/yyyy HH:mm")}
+                                        <td className="px-4 md:px-6 py-4 text-slate-500 whitespace-nowrap">
+                                            <span className="md:hidden">{format(new Date(t.created_at), "dd/MM HH:mm")}</span>
+                                            <span className="hidden md:inline">{format(new Date(t.created_at), "dd/MM/yyyy HH:mm")}</span>
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-slate-900">
+                                        <td className="px-4 md:px-6 py-4 font-medium text-slate-900">
                                             {t.patient?.name || "N/A"}
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">
+                                        <td className="px-4 md:px-6 py-4 text-slate-600 hidden md:table-cell">
                                             {t.description || "-"}
                                         </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-white text-slate-600 capitalize border border-slate-200 shadow-sm">
+                                        <td className="px-4 md:px-6 py-4 text-center">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] md:text-[11px] font-medium bg-white text-slate-600 capitalize border border-slate-200 shadow-sm">
                                                 {t.method.replace('_', ' ')}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-semibold text-emerald-600">
+                                        <td className="px-4 md:px-6 py-4 text-right font-semibold text-emerald-600">
                                             +${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                         </td>
                                     </tr>

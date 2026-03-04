@@ -1,0 +1,182 @@
+[
+  {
+    "id": "aa9f9e5e-d0a4-4156-9492-d3d967500c10",
+    "start_at": "2026-03-04T18:00:00+00:00",
+    "end_at": "2026-03-04T19:00:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Sofía Castro"
+    }
+  },
+  {
+    "id": "f2820b8c-edb8-46d3-a943-77343f8b6a84",
+    "start_at": "2026-03-04T18:00:00+00:00",
+    "end_at": "2026-03-04T19:00:00+00:00",
+    "status": "Nueva",
+    "patient": {
+      "name": "Sofía Castro"
+    }
+  },
+  {
+    "id": "f7fd40dc-8c6b-4866-90e0-c07cd234b102",
+    "start_at": "2026-03-04T16:00:00+00:00",
+    "end_at": "2026-03-04T17:00:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Carlos Sosa"
+    }
+  },
+  {
+    "id": "b6880fed-6444-4c2c-a5ba-da0266a55e5b",
+    "start_at": "2026-03-04T16:00:00+00:00",
+    "end_at": "2026-03-04T17:00:00+00:00",
+    "status": "Nueva",
+    "patient": {
+      "name": "Carlos Sosa"
+    }
+  },
+  {
+    "id": "11dddfc5-b002-4795-97bd-2dd20d54931f",
+    "start_at": "2026-03-04T16:00:00+00:00",
+    "end_at": "2026-03-04T17:00:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Carlos Sosa"
+    }
+  },
+  {
+    "id": "d82ad3e1-6860-4953-bedf-27fd84ea2a88",
+    "start_at": "2026-03-04T13:30:00+00:00",
+    "end_at": "2026-03-04T14:30:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Carlos Sosa"
+    }
+  },
+  {
+    "id": "b87a94b5-72ab-4cad-90d2-be8b87ca6c73",
+    "start_at": "2026-03-04T13:30:00+00:00",
+    "end_at": "2026-03-04T14:30:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Carlos Sosa"
+    }
+  },
+  {
+    "id": "10438dc3-7eae-46ab-8af0-82d1e9c2495d",
+    "start_at": "2026-03-04T00:49:19.757+00:00",
+    "end_at": "2026-03-04T01:49:19.757+00:00",
+    "status": "Nueva",
+    "patient": {
+      "name": "María García"
+    }
+  },
+  {
+    "id": "a6589b9a-e0b9-4cd0-a37f-b5de77969344",
+    "start_at": "2026-03-03T18:30:00+00:00",
+    "end_at": "2026-03-03T19:30:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Lucía Fernández"
+    }
+  },
+  {
+    "id": "b0b960da-9f5e-4472-86da-58ae02e37f10",
+    "start_at": "2026-03-03T18:00:00+00:00",
+    "end_at": "2026-03-03T19:00:00+00:00",
+    "status": "Reprogramada",
+    "patient": {
+      "name": "Sofía Castro"
+    }
+  },
+  {
+    "id": "73d35aba-33a6-49fe-b59a-ddc92013466d",
+    "start_at": "2026-03-03T16:00:00+00:00",
+    "end_at": "2026-03-03T17:00:00+00:00",
+    "status": "Reprogramada",
+    "patient": {
+      "name": "Carlos Sosa"
+    }
+  },
+  {
+    "id": "5e53c489-566b-431a-85d7-b84fb220298b",
+    "start_at": "2026-03-03T15:00:00+00:00",
+    "end_at": "2026-03-03T16:00:00+00:00",
+    "status": "Realizada",
+    "patient": {
+      "name": "Juan Pérez"
+    }
+  },
+  {
+    "id": "5316f3de-600f-4f82-a653-ee04e3426050",
+    "start_at": "2026-03-03T15:00:00+00:00",
+    "end_at": "2026-03-03T16:00:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Beatriz Nuñez"
+    }
+  },
+  {
+    "id": "1810c819-e598-4f45-aa29-e23639134f16",
+    "start_at": "2026-02-28T10:00:00+00:00",
+    "end_at": "2026-02-28T10:45:00+00:00",
+    "status": "No_asistio",
+    "patient": {
+      "name": "María García"
+    }
+  },
+  {
+    "id": "d34261bd-40c7-45ea-8111-9c4409671a07",
+    "start_at": "2026-02-26T14:00:00+00:00",
+    "end_at": "2026-02-26T15:00:00+00:00",
+    "status": "Cancelada",
+    "patient": {
+      "name": "Beatriz Nuñez"
+    }
+  },
+  {
+    "id": "331eb836-1468-496d-a3b7-723fb10c60c3",
+    "start_at": "2026-02-26T14:00:00+00:00",
+    "end_at": "2026-02-26T15:00:00+00:00",
+    "status": "Realizada",
+    "patient": {
+      "name": "María García"
+    }
+  },
+  {
+    "id": "ab76a29a-30df-4062-babe-898bf8fb5b01",
+    "start_at": "2026-02-25T09:00:00+00:00",
+    "end_at": "2026-02-25T10:00:00+00:00",
+    "status": "Realizada",
+    "patient": {
+      "name": "Juan Pérez"
+    }
+  },
+  {
+    "id": "9c27b85a-68fa-4b27-a6ee-6b924a6cbd04",
+    "start_at": "2026-02-21T15:00:00+00:00",
+    "end_at": "2026-02-21T15:45:00+00:00",
+    "status": "Realizada",
+    "patient": {
+      "name": "Juan Pérez"
+    }
+  },
+  {
+    "id": "eac02f4b-679a-46c2-af94-6ad657d397aa",
+    "start_at": "2026-02-19T14:00:00+00:00",
+    "end_at": "2026-02-19T15:00:00+00:00",
+    "status": "Realizada",
+    "patient": {
+      "name": "María García"
+    }
+  },
+  {
+    "id": "51c82016-983c-413c-9d7d-86cb7a3e879b",
+    "start_at": "2026-02-18T09:00:00+00:00",
+    "end_at": "2026-02-18T10:00:00+00:00",
+    "status": "Realizada",
+    "patient": {
+      "name": "Juan Pérez"
+    }
+  }
+]

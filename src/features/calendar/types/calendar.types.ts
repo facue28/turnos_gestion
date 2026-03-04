@@ -32,5 +32,8 @@ export interface CalendarEvent {
     status?: AppointmentStatus;
     pay_status?: PaymentStatus;
     patientId?: string;
+    patient_id?: string;   // alias usado en creacion de transacciones
+    paid_amount?: number;
+    price?: number;
     link_id?: string;
 }

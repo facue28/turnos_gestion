@@ -36,6 +36,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { createTransaction } from "@/app/actions/payments";
 
 const locales = {
     'es': es,
@@ -73,36 +75,33 @@ const CustomEventComponent = ({ event, view, onReprogram }: { event: CalendarEve
     }
 
     return (
-        <div className="flex flex-col justify-between h-full bg-transparent overflow-hidden p-1.5 group relative">
-            {/* Contenido principal flex-grow para empujar hacia abajo si hay espacio */}
-            <div className="flex flex-col min-w-0 flex-1 justify-center gap-0.5">
-                <span className="text-[13px] font-bold truncate leading-snug">
-                    {event.title}
-                </span>
+        <div className="flex flex-col justify-start h-full bg-transparent p-1.5 group relative" style={{ overflow: 'visible' }}>
+            {/* Nombre del paciente */}
+            <span className="text-[13px] font-bold truncate leading-snug pr-5">
+                {event.title}
+            </span>
 
-                <div className="flex flex-wrap gap-1 mt-0.5">
-                    {/* Estado Clínico (solo mostramos si no es 'Nueva' para mantenerlo limpio) */}
-                    {event.status && event.status !== 'Nueva' && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.status === 'Confirmada' ? 'bg-indigo-100/80 text-indigo-700 border-indigo-200' :
-                            event.status === 'Realizada' ? 'bg-indigo-600 text-white border-indigo-700' :
-                                event.status === 'No_asistio' ? 'bg-red-600 text-white border-red-700' :
-                                    'bg-slate-200 text-slate-700 border-slate-300'
-                            }`}>
-                            {event.status === 'No_asistio' ? 'No asistió' : event.status}
-                        </span>
-                    )}
+            {/* Badges de estado */}
+            <div className="flex flex-wrap gap-1 mt-0.5">
+                {event.status && event.status !== 'Nueva' && (
+                    <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.status === 'Confirmada' ? 'bg-indigo-100/80 text-indigo-700 border-indigo-200' :
+                        event.status === 'Realizada' ? 'bg-indigo-600 text-white border-indigo-700' :
+                            event.status === 'No_asistio' ? 'bg-red-600 text-white border-red-700' :
+                                'bg-slate-200 text-slate-700 border-slate-300'
+                        }`}>
+                        {event.status === 'No_asistio' ? 'No asistió' : event.status}
+                    </span>
+                )}
 
-                    {/* Estado de Pago */}
-                    {event.pay_status && (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit max-w-full truncate shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.pay_status === 'Cobrado' ? 'bg-emerald-100/90 text-emerald-700 border-emerald-200' :
-                            event.pay_status === 'Pendiente' ? 'bg-amber-100/90 text-amber-700 border-amber-200' :
-                                event.pay_status === 'Parcial' ? 'bg-blue-100/90 text-blue-700 border-blue-200' :
-                                    'bg-white/60 border-white/50'
-                            }`}>
-                            {event.pay_status}
-                        </span>
-                    )}
-                </div>
+                {event.pay_status && (
+                    <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.pay_status === 'Cobrado' ? 'bg-emerald-100/90 text-emerald-700 border-emerald-200' :
+                        event.pay_status === 'Pendiente' ? 'bg-amber-100/90 text-amber-700 border-amber-200' :
+                            event.pay_status === 'Parcial' ? 'bg-blue-100/90 text-blue-700 border-blue-200' :
+                                'bg-white/60 border-white/50'
+                        }`}>
+                        {event.pay_status}
+                    </span>
+                )}
             </div>
 
             {/* Menú de acciones posicionado absolutamente en la esquina superior derecha */}
@@ -118,75 +117,255 @@ const QuickStatusMenu = ({ event, onReprogram }: { event: CalendarEvent, onRepro
     const professionalId = user?.id || null;
     const { mutate: updateAppointment } = useUpdateAppointment(professionalId);
 
-    const handleUpdateStatus = (pay_status: any) => {
-        updateAppointment({
-            id: event.id,
-            data: { pay_status }
-        });
-    };
+    // Modal state
+    const [showCobradoModal, setShowCobradoModal] = useState(false);
+    const [showParcialModal, setShowParcialModal] = useState(false);
+    const [payMethod, setPayMethod] = useState<'efectivo' | 'transferencia'>('efectivo');
+    const [partialAmount, setPartialAmount] = useState<string>('');
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleUpdateClinicalStatus = (status: any) => {
-        updateAppointment({
-            id: event.id,
-            data: { status }
-        });
+        updateAppointment({ id: event.id, data: { status } });
     };
 
     const handleCancelAppointment = () => {
         updateAppointment({ id: event.id, data: { status: 'Cancelada' } });
     };
 
+    const handleConfirmCobrado = async () => {
+        if (!event.patient_id) return;
+        setIsSaving(true);
+        try {
+            const alreadyPaid = event.paid_amount || 0;
+            const total = event.price || 0;
+            const amountToCharge = Math.max(0, total - alreadyPaid);
+
+            updateAppointment({
+                id: event.id,
+                data: { pay_status: 'Cobrado', paid_amount: total }
+            });
+
+            if (amountToCharge > 0) {
+                await createTransaction({
+                    patient_id: event.patient_id,
+                    amount: amountToCharge,
+                    type: 'ingreso',
+                    method: payMethod,
+                    appointment_id: event.id,
+                    description: 'Pago completo de turno'
+                }, total);
+            }
+
+            toast.success(`Cobrado (${payMethod})`);
+            setShowCobradoModal(false);
+        } catch (err) {
+            toast.error('Error al registrar el cobro');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleConfirmParcial = async () => {
+        const amount = Number(partialAmount);
+        if (!amount || amount <= 0 || !event.patient_id) return;
+        setIsSaving(true);
+        try {
+            const alreadyPaid = event.paid_amount || 0;
+            const newTotal = alreadyPaid + amount;
+            const price = event.price || 0;
+            const newPayStatus = newTotal >= price ? 'Cobrado' : 'Parcial';
+
+            updateAppointment({
+                id: event.id,
+                data: { pay_status: newPayStatus, paid_amount: newTotal }
+            });
+
+            await createTransaction({
+                patient_id: event.patient_id,
+                amount,
+                type: 'ingreso',
+                method: payMethod,
+                appointment_id: event.id,
+                description: 'Pago parcial de turno'
+            }, price);
+
+            toast.success(`Cobro parcial registrado ($${amount.toLocaleString('es-AR')})`);
+            setShowParcialModal(false);
+            setPartialAmount('');
+        } catch (err) {
+            toast.error('Error al registrar el cobro parcial');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <button
-                    className="p-1 hover:bg-black/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <MoreHorizontal size={14} />
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado Clínico</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleUpdateClinicalStatus('Confirmada')} className="flex gap-2">
-                    <CheckCircle2 size={14} className="text-indigo-500" />
-                    <span>Marcar Confirmada</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUpdateClinicalStatus('Realizada')} className="flex gap-2">
-                    <CheckCircle2 size={14} className="text-indigo-700" />
-                    <span>Marcar Realizada</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado de Pago</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleUpdateStatus('Cobrado')} className="flex gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-500" />
-                    <span>Marcar como Cobrado</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUpdateStatus('Pendiente')} className="flex gap-2">
-                    <Clock size={14} className="text-amber-500" />
-                    <span>Dejar Pendiente</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUpdateStatus('Parcial')} className="flex gap-2">
-                    <AlertCircle size={14} className="text-blue-500" />
-                    <span>Cobro Parcial</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Acciones de Cita</DropdownMenuLabel>
-                {onReprogram && (
-                    <DropdownMenuItem onClick={onReprogram} className="flex gap-2 text-slate-600">
-                        <RefreshCw size={14} />
-                        <span>Reprogramar Cita</span>
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        className="p-1 hover:bg-black/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <MoreHorizontal size={14} />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado Clínico</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => handleUpdateClinicalStatus('Confirmada')} className="flex gap-2">
+                        <CheckCircle2 size={14} className="text-indigo-500" />
+                        <span>Marcar Confirmada</span>
                     </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={handleCancelAppointment} className="flex gap-2 text-red-600">
-                    <XCircle size={14} />
-                    <span>Cancelar Cita</span>
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    <DropdownMenuItem onClick={() => handleUpdateClinicalStatus('Realizada')} className="flex gap-2">
+                        <CheckCircle2 size={14} className="text-indigo-700" />
+                        <span>Marcar Realizada</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Estado de Pago</DropdownMenuLabel>
+                    <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); setPayMethod('efectivo'); setShowCobradoModal(true); }}
+                        className="flex gap-2"
+                        disabled={event.pay_status === 'Cobrado'}
+                    >
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                        <span>Marcar como Cobrado</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => updateAppointment({ id: event.id, data: { pay_status: 'Pendiente' } })} className="flex gap-2">
+                        <Clock size={14} className="text-amber-500" />
+                        <span>Dejar Pendiente</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); setPayMethod('efectivo'); setPartialAmount(''); setShowParcialModal(true); }}
+                        className="flex gap-2"
+                    >
+                        <AlertCircle size={14} className="text-blue-500" />
+                        <span>Cobro Parcial</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[10px] uppercase text-slate-500">Acciones de Cita</DropdownMenuLabel>
+                    {onReprogram && (
+                        <DropdownMenuItem onClick={onReprogram} className="flex gap-2 text-slate-600">
+                            <RefreshCw size={14} />
+                            <span>Reprogramar Cita</span>
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={handleCancelAppointment} className="flex gap-2 text-red-600">
+                        <XCircle size={14} />
+                        <span>Cancelar Cita</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Modal: Cobro Completo */}
+            <AlertDialog open={showCobradoModal} onOpenChange={setShowCobradoModal}>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Registrar Cobro Completo</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Se registrará un pago de <strong>${((event.price || 0) - (event.paid_amount || 0)).toLocaleString('es-AR')}</strong> en Caja.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex gap-2 py-2">
+                        <button
+                            type="button"
+                            onClick={() => setPayMethod('efectivo')}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold border transition-all ${payMethod === 'efectivo'
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                                }`}
+                        >
+                            💵 Efectivo
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPayMethod('transferencia')}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold border transition-all ${payMethod === 'transferencia'
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+                                }`}
+                        >
+                            🏦 Transferencia
+                        </button>
+                    </div>
+                    <AlertDialogFooter className="gap-3 sm:gap-2">
+                        <AlertDialogCancel disabled={isSaving} className="min-h-[44px] sm:min-h-0">Cancelar</AlertDialogCancel>
+                        <button
+                            onClick={handleConfirmCobrado}
+                            disabled={isSaving}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-semibold min-h-[44px] sm:h-10 px-5 bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 active:bg-emerald-800 transition-all duration-100 disabled:opacity-50 shadow-sm"
+                        >
+                            {isSaving ? 'Guardando...' : 'Confirmar Cobro'}
+                        </button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Modal: Cobro Parcial */}
+            <AlertDialog open={showParcialModal} onOpenChange={setShowParcialModal}>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Registrar Cobro Parcial</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Precio total del turno: <strong>${(event.price || 0).toLocaleString('es-AR')}</strong>. Ya cobrado: <strong>${(event.paid_amount || 0).toLocaleString('es-AR')}</strong>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div>
+                            <label className="text-sm font-medium text-slate-700 mb-1 block">Monto cobrado hoy</label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-slate-500 font-medium">$</span>
+                                <Input
+                                    type="number"
+                                    placeholder="Ej: 5000"
+                                    value={partialAmount}
+                                    onChange={(e) => setPartialAmount(e.target.value)}
+                                    className="h-10"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-slate-700 mb-1 block">Método de pago</label>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setPayMethod('efectivo')}
+                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold border transition-all ${payMethod === 'efectivo'
+                                        ? 'bg-emerald-600 text-white border-emerald-600'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                                        }`}
+                                >
+                                    💵 Efectivo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPayMethod('transferencia')}
+                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold border transition-all ${payMethod === 'transferencia'
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+                                        }`}
+                                >
+                                    🏦 Transferencia
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <AlertDialogFooter className="gap-3 sm:gap-2">
+                        <AlertDialogCancel disabled={isSaving} className="min-h-[44px] sm:min-h-0">Cancelar</AlertDialogCancel>
+                        <button
+                            onClick={handleConfirmParcial}
+                            disabled={isSaving || !partialAmount || Number(partialAmount) <= 0}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-semibold min-h-[44px] sm:h-10 px-5 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 active:bg-blue-800 transition-all duration-100 disabled:opacity-50 shadow-sm"
+                        >
+                            {isSaving ? 'Guardando...' : 'Confirmar Pago Parcial'}
+                        </button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 };
 
@@ -251,11 +430,14 @@ export default function CalendarView() {
                         id: app.id,
                         title: `${app.patient?.name || 'Paciente Sin Nombre'}`,
                         patientId: app.patient_id,
+                        patient_id: app.patient_id,
                         start: new Date(app.start_at),
                         end: new Date(app.end_at),
                         type: 'appointment',
                         status: app.status || 'Nueva',
-                        pay_status: app.pay_status || 'Pendiente'
+                        pay_status: app.pay_status || 'Pendiente',
+                        price: app.price || 0,
+                        paid_amount: app.paid_amount || 0
                     });
                 }
             });
@@ -480,47 +662,50 @@ export default function CalendarView() {
     return (
         <div className={`w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col ${view === Views.MONTH ? 'h-[850px]' : 'h-auto'}`}>
 
-            <div className="flex-1 min-h-0 w-full">
-                <DnDCalendar
-                    style={{ height: '100%', width: '100%' }}
-                    localizer={localizer}
-                    events={events}
-                    startAccessor="start"
-                    endAccessor="end"
-                    date={date}
-                    onNavigate={setDate}
-                    culture="es"
-                    defaultView={Views.WEEK}
-                    views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-                    view={view}
-                    onView={setView}
-                    messages={{
-                        next: "Sig.",
-                        previous: "Ant.",
-                        today: "Hoy",
-                        month: "Mes",
-                        week: "Semana",
-                        day: "Día",
-                        agenda: "Agenda",
-                    }}
-                    eventPropGetter={eventStyleGetter as any}
-                    step={30}
-                    timeslots={2}
-                    selectable={true}
-                    onSelectSlot={handleSelectSlot}
-                    onSelectEvent={handleSelectEvent as any}
-                    onEventDrop={handleEventDrop as any}
-                    resizable={true}
-                    onEventResize={handleEventDrop as any}
-                    min={calendarMin}
-                    max={calendarMax}
-                    scrollToTime={new Date()}
-                    className="rounded-lg overflow-hidden"
-                    dayPropGetter={dayPropGetter}
-                    components={{
-                        event: ((props: any) => <CustomEventComponent {...props} view={view} onReprogram={handleReprogramMenuClick} />) as any
-                    }}
-                />
+
+            <div className="flex-1 min-h-0 w-full overflow-x-auto pb-4 custom-scrollbar">
+                <div className="min-w-[800px] h-full md:min-w-0">
+                    <DnDCalendar
+                        style={{ height: '100%', width: '100%' }}
+                        localizer={localizer}
+                        events={events}
+                        startAccessor="start"
+                        endAccessor="end"
+                        date={date}
+                        onNavigate={setDate}
+                        culture="es"
+                        defaultView={Views.WEEK}
+                        views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+                        view={view}
+                        onView={setView}
+                        messages={{
+                            next: "Sig.",
+                            previous: "Ant.",
+                            today: "Hoy",
+                            month: "Mes",
+                            week: "Semana",
+                            day: "Día",
+                            agenda: "Agenda",
+                        }}
+                        eventPropGetter={eventStyleGetter as any}
+                        step={30}
+                        timeslots={2}
+                        selectable={true}
+                        onSelectSlot={handleSelectSlot}
+                        onSelectEvent={handleSelectEvent as any}
+                        onEventDrop={handleEventDrop as any}
+                        resizable={true}
+                        onEventResize={handleEventDrop as any}
+                        min={calendarMin}
+                        max={calendarMax}
+                        scrollToTime={new Date()}
+                        className="rounded-lg overflow-hidden"
+                        dayPropGetter={dayPropGetter}
+                        components={{
+                            event: ((props: any) => <CustomEventComponent {...props} view={view} onReprogram={handleReprogramMenuClick} />) as any
+                        }}
+                    />
+                </div>
             </div>
 
             <AppointmentDialog
@@ -542,11 +727,11 @@ export default function CalendarView() {
                             ¿Deseas confirmar este cambio de todas formas?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar movimiento</AlertDialogCancel>
+                    <AlertDialogFooter className="gap-3 sm:gap-2">
+                        <AlertDialogCancel className="min-h-[44px] sm:min-h-0">Cancelar movimiento</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => updateAppointment({ id: pendingDragEvent.id, data: pendingDragEvent.payload })}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className="bg-indigo-600 hover:bg-indigo-700 min-h-[44px] sm:min-h-0"
                         >
                             Confirmar cambio
                         </AlertDialogAction>
@@ -563,8 +748,8 @@ export default function CalendarView() {
                             ¿Deseas continuar y agendar un turno aquí de todas formas?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setPendingClickSlot(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogFooter className="gap-3 sm:gap-2">
+                        <AlertDialogCancel onClick={() => setPendingClickSlot(null)} className="min-h-[44px] sm:min-h-0">Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => {
                                 setShowClickConflict(false);
@@ -572,7 +757,7 @@ export default function CalendarView() {
                                     proceedWithSlotSelection(pendingClickSlot.start, pendingClickSlot.end);
                                 }
                             }}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className="bg-indigo-600 hover:bg-indigo-700 min-h-[44px] sm:min-h-0"
                         >
                             Sí, proceder a agendar
                         </AlertDialogAction>

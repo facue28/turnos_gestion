@@ -12,6 +12,10 @@ import { Phone, Mail, Calendar, CreditCard, ClipboardList, MessageSquare, Edit }
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { getPatientHistory } from "@/app/actions/appointments";
+import { getPatientBalance } from "@/app/actions/payments";
+import Link from "next/link";
 
 interface PatientSheetProps {
     patient: PatientData | null;
@@ -27,6 +31,18 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
         { enabled: open }
     );
 
+    const { data: historyData, isLoading: isLoadingHistory } = useQuery({
+        queryKey: ["patientHistory", patient?.id],
+        queryFn: () => getPatientHistory(patient!.id, 4),
+        enabled: !!patient?.id && open,
+    });
+
+    const { data: balanceData, isLoading: isLoadingBalance } = useQuery({
+        queryKey: ["patientBalance", patient?.id],
+        queryFn: () => getPatientBalance(patient!.id, true),
+        enabled: !!patient?.id && open,
+    });
+
     if (!patient) return null;
 
     const whatsappUrl = patient.phone
@@ -35,7 +51,10 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-md border-l shadow-xl bg-slate-50/50 p-0 flex flex-col h-full">
+            <SheetContent
+                side="bottom"
+                className="w-full h-[90vh] md:h-full md:side-right md:max-w-md border-t md:border-l shadow-xl bg-slate-50/50 p-0 flex flex-col"
+            >
                 <SheetHeader className="bg-white p-6 border-b shrink-0">
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
@@ -48,6 +67,19 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                             {patient.alias && (
                                 <p className="text-sm text-slate-500 font-medium">Alias: {patient.alias}</p>
                             )}
+                            <div className="pt-1">
+                                {isLoadingBalance ? (
+                                    <div className="h-5 w-20 bg-slate-100 animate-pulse rounded"></div>
+                                ) : balanceData?.debt && balanceData.debt > 0 ? (
+                                    <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 hover:bg-red-50">
+                                        Adeuda: ${balanceData.debt.toLocaleString("es-AR")}
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
+                                        Al día
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
                         <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-100 px-2.5 py-0.5">
                             Paciente
@@ -55,7 +87,7 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                     </div>
                 </SheetHeader>
 
-                <ScrollArea className="flex-1">
+                <div className="flex-1 overflow-y-auto min-h-0 bg-slate-50/50">
                     <div className="p-6 space-y-8">
                         {/* Contact Info */}
                         <div className="space-y-4">
@@ -135,7 +167,7 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                             </div>
                         </div>
 
-                        {/* Recent History / Upcoming */}
+                        {/* Upcoming / History Box */}
                         <div className="space-y-4">
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Próximos Turnos</h3>
                             {isLoadingApps ? (
@@ -149,7 +181,7 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {upcomingAppointments.map((app) => (
+                                    {upcomingAppointments.slice(0, 1).map((app) => (
                                         <div key={app.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between group hover:border-indigo-200 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-indigo-50 flex flex-col items-center justify-center text-indigo-600 border border-indigo-100">
@@ -174,10 +206,61 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                             )}
                         </div>
 
+                        {/* Recent History Box */}
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Historial de Turnos</h3>
+                            {isLoadingHistory ? (
+                                <div className="p-8 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                    <div className="w-5 h-5 border-2 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+                                </div>
+                            ) : !historyData || historyData.length === 0 ? (
+                                <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+                                    <p className="text-sm text-slate-400">Aún no hay turnos registrados</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {(historyData.slice(0, 3)).map((app) => (
+                                        <div key={app.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between group hover:border-slate-300 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-50 flex flex-col items-center justify-center text-slate-600 border border-slate-200">
+                                                    <span className="text-[10px] font-bold leading-none uppercase">{format(parseISO(app.start_at), "MMM", { locale: es })}</span>
+                                                    <span className="text-sm font-black leading-none">{format(parseISO(app.start_at), "dd")}</span>
+                                                </div>
+                                                <div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="text-sm font-bold text-slate-800 tracking-tight">
+                                                            {format(parseISO(app.start_at), "HH:mm")}
+                                                        </p>
+                                                        {app.status === 'Realizada' && <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-600 border-emerald-200 whitespace-nowrap">Realizada</Badge>}
+                                                        {app.status === 'No_asistio' && <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 border-red-200 whitespace-nowrap">No asistió</Badge>}
+                                                        {(app.status === 'Cancelada' || app.status === 'Reprogramada') && <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 border-slate-200 whitespace-nowrap">{app.status}</Badge>}
+                                                        {(app.status === 'Nueva' || app.status === 'Confirmada') && <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 border-indigo-200 whitespace-nowrap">{app.status}</Badge>}
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 capitalize flex items-center gap-1 mt-0.5">
+                                                        {app.pay_status === 'Cobrado' ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span> : <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>}
+                                                        {app.pay_status} • ${app.price?.toLocaleString("es-AR") || 0}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {historyData.length > 3 && (
+                                        <div className="pt-2">
+                                            <Link href={`/pacientes/${patient.id}`} passHref>
+                                                <Button variant="outline" className="w-full text-slate-600 bg-white border-slate-200 shadow-sm hover:bg-slate-50">
+                                                    Ver historial completo
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         {/* Notes */}
-                        <div className="space-y-4 pb-10">
+                        <div className="space-y-4 pb-4">
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Notas Clínicas</h3>
-                            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm min-h-[100px]">
+                            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm min-h-[100px] mb-4">
                                 <div className="flex gap-3">
                                     <ClipboardList size={16} className="text-slate-400 shrink-0 mt-0.5" />
                                     <p className="text-sm text-slate-600 leading-relaxed italic">
@@ -187,11 +270,11 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                             </div>
                         </div>
                     </div>
-                </ScrollArea>
+                </div>
 
                 <div className="p-6 bg-white border-t space-y-3 shrink-0">
                     <Button
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md gap-2"
+                        className="w-full min-h-[44px] bg-indigo-600 hover:bg-indigo-700 text-white shadow-md gap-2"
                         onClick={() => {
                             if (patient) {
                                 onOpenChange(false);
@@ -202,11 +285,11 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                         <Edit size={16} />
                         Editar Información
                     </Button>
-                    <Button variant="outline" className="w-full text-slate-600 border-slate-200 shadow-sm" onClick={() => onOpenChange(false)}>
+                    <Button variant="outline" className="w-full min-h-[44px] text-slate-600 border-slate-200 shadow-sm" onClick={() => onOpenChange(false)}>
                         Cerrar Ficha
                     </Button>
                 </div>
             </SheetContent>
-        </Sheet>
+        </Sheet >
     );
 }

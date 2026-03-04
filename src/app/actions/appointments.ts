@@ -112,3 +112,67 @@ export async function updateAppointmentPaymentStatus(
 
     revalidatePath('/hoy');
 }
+
+export async function getPatientHistory(patientId: string, limitCount?: number) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error("No autorizado");
+
+    let query = supabase
+        .from('appointments')
+        .select(`
+            id,
+            start_at,
+            status,
+            pay_status,
+            modality,
+            price
+        `)
+        .eq('patient_id', patientId)
+        .eq('professional_id', user.id)
+        .order('start_at', { ascending: false });
+
+    if (limitCount) {
+        query = query.limit(limitCount);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error("Error fetching patient history:", error);
+        throw new Error("No se pudo obtener el historial del paciente");
+    }
+
+    return data;
+}
+
+export async function getAppointmentsForExport(startDate: Date, endDate: Date) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error("No autorizado");
+
+    const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+            id,
+            start_at,
+            status,
+            pay_status,
+            modality,
+            price,
+            patient:patients ( name )
+        `)
+        .eq('professional_id', user.id)
+        .gte('start_at', startDate.toISOString())
+        .lte('start_at', endDate.toISOString())
+        .order('start_at', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching appointments for export:", error);
+        return [];
+    }
+
+    return data || [];
+}

@@ -53,6 +53,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
     const [duration, setDuration] = useState<number | string>(60);
     const [notes, setNotes] = useState<string>("");
     const [payStatus, setPayStatus] = useState<PaymentStatus>("Pendiente");
+    const [payMethod, setPayMethod] = useState<'efectivo' | 'transferencia'>('efectivo');
 
     // Controles de fecha y hora nativos
     const [dateStr, setDateStr] = useState<string>("");
@@ -119,7 +120,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                         patient_id: patientId,
                         amount: amountToCharge,
                         type: 'ingreso',
-                        method: 'efectivo',
+                        method: payMethod,
                         appointment_id: appointmentId,
                         description: payStatus === 'Cobrado' ? 'Pago completo de turno' : 'Pago parcial de turno'
                     }, Number(price) || 0); // Pass expected total
@@ -206,7 +207,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="w-[95vw] sm:max-w-[425px] p-4 md:p-6 overflow-y-auto max-h-[95vh] rounded-2xl">
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'reprogram' ? "Reprogramar Turno" : (mode === 'edit' ? "Editar Turno" : "Nuevo Turno")}
@@ -234,6 +235,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                                 type="date"
                                 value={dateStr}
                                 onChange={(e) => setDateStr(e.target.value)}
+                                className="min-h-[44px] md:min-h-0"
                             />
                         </div>
                         <div className="space-y-2">
@@ -242,6 +244,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                                 type="time"
                                 value={timeStr}
                                 onChange={(e) => setTimeStr(e.target.value)}
+                                className="min-h-[44px] md:min-h-0"
                             />
                         </div>
                     </div>
@@ -250,7 +253,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                         <div className="space-y-2">
                             <Label>Modalidad</Label>
                             <Select value={modality} onValueChange={(v: any) => setModality(v)}>
-                                <SelectTrigger>
+                                <SelectTrigger className="min-h-[44px] md:min-h-0">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -266,6 +269,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                                 value={duration}
                                 onChange={(e) => setDuration(e.target.value)}
                                 min={1}
+                                className="min-h-[44px] md:min-h-0"
                             />
                         </div>
                     </div>
@@ -276,13 +280,14 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                             type="number"
                             value={price}
                             onChange={(e) => setPrice(e.target.value)}
+                            className="min-h-[44px] md:min-h-0"
                         />
                     </div>
 
                     <div className="space-y-3 p-4 bg-slate-50/70 rounded-xl border border-slate-200 shadow-sm">
                         <Label className="text-sm font-semibold text-slate-800">Estado de Cobro</Label>
                         <Select value={payStatus} onValueChange={(v: any) => setPayStatus(v)}>
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-white min-h-[44px] md:min-h-0">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -293,25 +298,76 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                         </Select>
 
                         {payStatus === 'Parcial' && (
-                            <div className="mt-3 bg-white p-3 rounded-md border shadow-sm space-y-2 animate-in fade-in duration-300">
-                                <Label className="text-xs font-semibold text-blue-700">Monto ingresado por el paciente HOY</Label>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-slate-500 font-medium">$</span>
-                                    <Input
-                                        type="number"
-                                        placeholder="Ej: 5000"
-                                        value={partialAmount}
-                                        onChange={(e) => setPartialAmount(e.target.value)}
-                                        className="h-9"
-                                    />
+                            <div className="mt-3 bg-white p-3 rounded-md border shadow-sm space-y-3 animate-in fade-in duration-300">
+                                <div>
+                                    <Label className="text-xs font-semibold text-blue-700 block mb-1.5">Monto ingresado hoy</Label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-slate-500 font-medium">$</span>
+                                        <Input
+                                            type="number"
+                                            placeholder="Ej: 5000"
+                                            value={partialAmount}
+                                            onChange={(e) => setPartialAmount(e.target.value)}
+                                            className="h-11 md:h-9"
+                                        />
+                                    </div>
                                 </div>
-                                <p className="text-[11px] text-slate-500">Se crearán automáticamente los movimientos de caja correspondientes en efectivo.</p>
+                                <div>
+                                    <Label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1.5">Método de pago</Label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPayMethod('efectivo')}
+                                            className={`flex-1 py-1.5 px-3 min-h-[44px] md:min-h-0 rounded-md text-xs font-semibold border transition-all ${payMethod === 'efectivo'
+                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                                                }`}
+                                        >
+                                            💵 Efectivo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPayMethod('transferencia')}
+                                            className={`flex-1 py-1.5 px-3 min-h-[44px] md:min-h-0 rounded-md text-xs font-semibold border transition-all ${payMethod === 'transferencia'
+                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+                                                }`}
+                                        >
+                                            🏦 Transferencia
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-slate-500 italic">Se registrará un movimiento de caja con el método seleccionado.</p>
                             </div>
                         )}
                         {payStatus === 'Cobrado' && selectedAppointment?.pay_status !== 'Cobrado' && (
-                            <p className="text-xs text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-100 font-medium animate-in fade-in duration-300">
-                                Se registrará automáticamente un ingreso en caja en efectivo cancelando la deuda del turno.
-                            </p>
+                            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg space-y-2 animate-in fade-in duration-300">
+                                <p className="text-xs text-emerald-700 font-medium">
+                                    Se registrará un ingreso en caja cancelando la deuda del turno.
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPayMethod('efectivo')}
+                                        className={`flex-1 min-h-[44px] md:min-h-0 py-1.5 px-3 rounded-md text-xs font-semibold border transition-all ${payMethod === 'efectivo'
+                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                                            }`}
+                                    >
+                                        💵 Efectivo
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPayMethod('transferencia')}
+                                        className={`flex-1 min-h-[44px] md:min-h-0 py-1.5 px-3 rounded-md text-xs font-semibold border transition-all ${payMethod === 'transferencia'
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+                                            }`}
+                                    >
+                                        🏦 Transferencia
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
 
@@ -321,6 +377,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                             placeholder="Ej: Trae estudios previos..."
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
+                            className="min-h-[44px] md:min-h-0"
                         />
                     </div>
                 </div>
@@ -346,12 +403,14 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                     </div>
                 )}
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                <DialogFooter className="flex flex-col sm:flex-row gap-3">
+                    <Button variant="outline" onClick={onClose} className="w-full sm:w-auto min-h-[44px] sm:min-h-0">
+                        Cancelar
+                    </Button>
                     <Button
                         onClick={handleSave}
                         disabled={!patientId || isCreating || isUpdating}
-                        className="bg-indigo-600 hover:bg-indigo-700"
+                        className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 min-h-[44px] sm:min-h-0"
                     >
                         {mode === 'reprogram' ? "Confirmar Reprogramación" : (mode === 'edit' ? "Guardar Cambios" : "Confirmar Turno")}
                     </Button>
@@ -367,11 +426,11 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                             ¿Deseas agendarlo de todas formas?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Volver a editar</AlertDialogCancel>
+                    <AlertDialogFooter className="flex flex-col sm:flex-row gap-3">
+                        <AlertDialogCancel className="w-full sm:w-auto min-h-[44px] sm:min-h-0">Volver a editar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => executeSave(pendingPayload.payload, pendingPayload.amountToCharge)}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 min-h-[44px] sm:min-h-0"
                         >
                             Agendar de todas formas
                         </AlertDialogAction>
