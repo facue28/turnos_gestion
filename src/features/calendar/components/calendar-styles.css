@@ -179,11 +179,13 @@
     z-index: 10;
 }
 
-/* Hide all-day row only in time views (Week/Day) so it doesn't break Month view */
-.rbc-time-view .rbc-allday-cell,
+/* Hide all-day row ONLY in Week/Day views */
+.rbc-time-view .rbc-allday-cell {
+    display: none !important;
+}
+
 .rbc-time-view .rbc-time-header-content .rbc-row.rbc-row-resource {
     display: none !important;
-    height: 0 !important;
 }
 
 /* Toolbar Refinement */
@@ -223,7 +225,8 @@
 }
 
 .rbc-month-row {
-    border-top: 1px solid #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    /* slate-200 para demarcar filas */
 }
 
 /* Color y atenuación para días fuera del mes actual (febrero/abril si estamos en marzo) */
@@ -239,5 +242,25 @@
 }
 
 .rbc-day-bg+.rbc-day-bg {
-    border-left: 1px solid #f8fafc !important;
+    border-left: 1px solid #e2e8f0 !important;
+    /* slate-200 para demarcar columnas mensales */
+}
+
+/* Permitir empaquetamiento de multiples turnos por celda en la Vista Mes */
+.rbc-month-view .rbc-event {
+    height: 18px !important;
+    /* Altura forzada mini para formato renglón */
+    min-height: 18px !important;
+    padding: 0 !important;
+    margin-bottom: 2px !important;
+}
+
+/* Estilizar el botón de "+N más" cuando hay más turnos de los que caben en el recuadro */
+.rbc-show-more {
+    font-size: 11px !important;
+    color: #4f46e5 !important;
+    /* indigo 600 */
+    font-weight: 600 !important;
+    background-color: transparent !important;
+    padding-left: 4px;
 }

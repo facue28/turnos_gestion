@@ -30,14 +30,17 @@ export const calendarService = {
         return data as AppointmentData[];
     },
 
-    async createAppointment(professionalId: string, payload: Omit<AppointmentData, "id" | "professional_id">): Promise<void> {
+    async createAppointment(professionalId: string, payload: Omit<AppointmentData, "id" | "professional_id">): Promise<AppointmentData> {
         const tenantId = await getTenantId(professionalId);
 
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from("appointments")
-            .insert({ ...payload, professional_id: professionalId, tenant_id: tenantId });
+            .insert({ ...payload, professional_id: professionalId, tenant_id: tenantId })
+            .select()
+            .single();
 
         if (error) throw new Error(error.message);
+        return data as AppointmentData;
     },
 
     async updateAppointment(professionalId: string, id: string, payload: Partial<AppointmentData>): Promise<void> {

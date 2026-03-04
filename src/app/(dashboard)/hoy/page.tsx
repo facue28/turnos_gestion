@@ -1,4 +1,5 @@
 import { getAppointmentsToday, updateAppointmentStatus, updateAppointmentPaymentStatus } from "@/app/actions/appointments";
+import { getOrphanAppointments } from "@/app/actions/payments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppointmentActions } from "./components/AppointmentActions";
+import { OrphanBanner } from "./components/OrphanBanner";
 
 export const metadata = {
     title: "Hoy | Centro de Comando Diario",
@@ -16,6 +18,7 @@ export const metadata = {
 
 export default async function TodayPage() {
     const todayAppointments = await getAppointmentsToday();
+    const orphanAppointments = await getOrphanAppointments();
 
     // Filtramos los cancelados o reprogramados para limpiar la vista por defecto
     const activeAppointments = todayAppointments.filter(
@@ -35,6 +38,8 @@ export default async function TodayPage() {
                     {todayFormatted}
                 </p>
             </header>
+
+            <OrphanBanner orphans={orphanAppointments} />
 
             {/* Lista o Empty State */}
             {activeAppointments.length === 0 ? (

@@ -15,6 +15,7 @@ import { useAvailability, useBlocks } from "@/features/settings/hooks/useSetting
 import { CalendarEvent, AppointmentData } from "../types/calendar.types";
 import { detectCollision } from "../utils/collisionUtils";
 import AppointmentDialog from "./AppointmentDialog";
+import { logToTerminal } from "@/app/actions/log";
 import { MoreHorizontal, CheckCircle2, Clock, XCircle, AlertCircle, Lock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,7 +51,7 @@ const localizer = dateFnsLocalizer({
 
 const DnDCalendar = withDragAndDrop(Calendar as any);
 
-const CustomEventComponent = ({ event, onReprogram }: { event: CalendarEvent, onReprogram?: (e: CalendarEvent) => void }) => {
+const CustomEventComponent = ({ event, view, onReprogram }: { event: CalendarEvent, view?: string, onReprogram?: (e: CalendarEvent) => void }) => {
     if (event.type === 'block') {
         return (
             <div className="flex items-center justify-center h-full opacity-40" title={event.title}>
@@ -59,13 +60,14 @@ const CustomEventComponent = ({ event, onReprogram }: { event: CalendarEvent, on
         );
     }
 
-    if ((event as any).type === 'appointment_group') {
+    // Adaptación para la vista de Mes: UI minimalista para encajar en el renglón estrecho de RBC
+    if (view === Views.MONTH) {
         return (
-            <div className="flex flex-col items-center justify-center w-full min-h-[44px] py-1 cursor-pointer group hover:bg-indigo-100 transition-colors duration-200 rounded-md">
-                <span className="block text-sm font-bold text-indigo-700 leading-tight">{event.title}</span>
-                <span className="block text-[10px] text-indigo-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 leading-tight">
-                    Cargar agenda
-                </span>
+            <div className="flex items-center gap-1 px-1 h-full w-full bg-transparent overflow-hidden text-[10px] sm:text-[11px] font-medium truncate">
+                {event.pay_status === 'Cobrado' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>}
+                {event.pay_status === 'Pendiente' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>}
+                {event.pay_status === 'Parcial' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>}
+                <span className="truncate flex-1">{event.title}</span>
             </div>
         );
     }
@@ -82,9 +84,9 @@ const CustomEventComponent = ({ event, onReprogram }: { event: CalendarEvent, on
                     {/* Estado Clínico (solo mostramos si no es 'Nueva' para mantenerlo limpio) */}
                     {event.status && event.status !== 'Nueva' && (
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.status === 'Confirmada' ? 'bg-indigo-100/80 text-indigo-700 border-indigo-200' :
-                                event.status === 'Realizada' ? 'bg-indigo-600 text-white border-indigo-700' :
-                                    event.status === 'No_asistio' ? 'bg-red-600 text-white border-red-700' :
-                                        'bg-slate-200 text-slate-700 border-slate-300'
+                            event.status === 'Realizada' ? 'bg-indigo-600 text-white border-indigo-700' :
+                                event.status === 'No_asistio' ? 'bg-red-600 text-white border-red-700' :
+                                    'bg-slate-200 text-slate-700 border-slate-300'
                             }`}>
                             {event.status === 'No_asistio' ? 'No asistió' : event.status}
                         </span>
@@ -93,9 +95,9 @@ const CustomEventComponent = ({ event, onReprogram }: { event: CalendarEvent, on
                     {/* Estado de Pago */}
                     {event.pay_status && (
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit max-w-full truncate shadow-[0_1px_2px_rgba(0,0,0,0.05)] border ${event.pay_status === 'Cobrado' ? 'bg-emerald-100/90 text-emerald-700 border-emerald-200' :
-                                event.pay_status === 'Pendiente' ? 'bg-amber-100/90 text-amber-700 border-amber-200' :
-                                    event.pay_status === 'Parcial' ? 'bg-blue-100/90 text-blue-700 border-blue-200' :
-                                        'bg-white/60 border-white/50'
+                            event.pay_status === 'Pendiente' ? 'bg-amber-100/90 text-amber-700 border-amber-200' :
+                                event.pay_status === 'Parcial' ? 'bg-blue-100/90 text-blue-700 border-blue-200' :
+                                    'bg-white/60 border-white/50'
                             }`}>
                             {event.pay_status}
                         </span>
@@ -205,6 +207,10 @@ export default function CalendarView() {
 
     const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'reprogram'>('create');
 
+    useEffect(() => {
+        logToTerminal(`Cambio de fecha o vista. Modo actual: ${view}, Fecha focal: ${date.toISOString()}`);
+    }, [view, date]);
+
     const handleReprogramMenuClick = (event: CalendarEvent) => {
         const appointment = appointments?.find(a => a.id === event.id);
         if (appointment) {
@@ -220,49 +226,39 @@ export default function CalendarView() {
     const { data: availability } = useAvailability(professionalId);
     const { data: blocks } = useBlocks(professionalId);
 
+    useEffect(() => {
+        if (!appointments || typeof window === 'undefined') return;
+        const febEvents = appointments.filter(e => {
+            const d = new Date(e.start_at);
+            return d.getMonth() === 1 && d.getFullYear() === 2026;
+        });
+        logToTerminal("==== AUDITORIA CALENDARIO FETCHING ====", {
+            totalAppointments: appointments.length,
+            februaryAppointments: febEvents.length,
+            sample: febEvents.slice(0, 3)
+        });
+    }, [appointments]);
+
     // Transform data to CalendarEvents
     const events = useMemo(() => {
         const calendarEvents: CalendarEvent[] = [];
 
         // 1. Add Appointments
         if (appointments) {
-            if (view === Views.MONTH) {
-                const grouped = new Map<number, any[]>();
-                appointments.forEach(app => {
-                    if (app.status !== 'Cancelada') {
-                        const dayStart = startOfDay(new Date(app.start_at)).getTime();
-                        if (!grouped.has(dayStart)) {
-                            grouped.set(dayStart, []);
-                        }
-                        grouped.get(dayStart)!.push(app);
-                    }
-                });
-
-                grouped.forEach((group, dayStart) => {
+            appointments.forEach(app => {
+                if (app.status !== 'Cancelada') {
                     calendarEvents.push({
-                        id: `group-${dayStart}`,
-                        title: `${group.length} turno${group.length > 1 ? 's' : ''}`,
-                        start: new Date(dayStart),
-                        end: new Date(dayStart),
-                        type: 'appointment_group' as any,
+                        id: app.id,
+                        title: `${app.patient?.name || 'Paciente Sin Nombre'}`,
+                        patientId: app.patient_id,
+                        start: new Date(app.start_at),
+                        end: new Date(app.end_at),
+                        type: 'appointment',
+                        status: app.status || 'Nueva',
+                        pay_status: app.pay_status || 'Pendiente'
                     });
-                });
-            } else {
-                appointments.forEach(app => {
-                    if (app.status !== 'Cancelada') {
-                        calendarEvents.push({
-                            id: app.id,
-                            title: `${app.patient?.name || 'Paciente Sin Nombre'}`,
-                            patientId: app.patient_id,
-                            start: new Date(app.start_at),
-                            end: new Date(app.end_at),
-                            type: 'appointment',
-                            status: app.status || 'Nueva',
-                            pay_status: app.pay_status || 'Pendiente'
-                        });
-                    }
-                });
-            }
+                }
+            });
         }
 
         // 2. Add Blocks - WE NO LONGER ADD BLOCKS TO THE EVENTS ARRAY
@@ -285,34 +281,39 @@ export default function CalendarView() {
         // 3. Demo Mode Data - REMOVED: Now using persistent DB patients
 
         return calendarEvents;
-    }, [appointments, blocks, isDemoMode, view]);
+    }, [appointments, blocks, isDemoMode, view, date]);
 
-    // Calculate dynamic min/max hours based on availability
+    // Calculate dynamic min/max hours based on availability AND events
     const { calendarMin, calendarMax } = useMemo(() => {
-        if (!availability || availability.length === 0) {
-            return {
-                calendarMin: new Date(0, 0, 0, 8, 0, 0),
-                calendarMax: new Date(0, 0, 0, 20, 0, 0)
-            };
-        }
-
         let minHour = 24;
         let maxHour = 0;
 
-        availability.forEach(a => {
-            const startH = parseInt(a.start_time.split(':')[0]);
-            const endH = parseInt(a.end_time.split(':')[0]);
+        if (availability && availability.length > 0) {
+            availability.forEach(a => {
+                const startH = parseInt(a.start_time.split(':')[0]);
+                const endH = parseInt(a.end_time.split(':')[0]);
+                if (startH < minHour) minHour = startH;
+                if (endH > maxHour) maxHour = endH;
+            });
+        } else {
+            minHour = 8;
+            maxHour = 20;
+        }
+
+        // Expand bounds if there are events outside the availability
+        events.forEach(e => {
+            const startH = e.start.getHours();
+            const endH = e.end.getHours();
             if (startH < minHour) minHour = startH;
             if (endH > maxHour) maxHour = endH;
         });
 
-        // To show until 20:00 inclusive (and see the 20:00 label), 
-        // we set max to the start of the next hour.
+        // Add 1 hour padding at the bottom for visibility
         return {
             calendarMin: new Date(0, 0, 0, Math.max(0, minHour), 0, 0),
             calendarMax: new Date(0, 0, 0, Math.min(24, maxHour + 1), 0, 0)
         };
-    }, [availability]);
+    }, [availability, events]);
 
     const eventStyleGetter = (event: CalendarEvent) => {
         let backgroundColor = '#f1f5f9'; // slate-100 default
@@ -371,19 +372,7 @@ export default function CalendarView() {
                     opacity: 0.5
                 }
             };
-        } else if ((event as any).type === 'appointment_group') {
-            return {
-                style: {
-                    backgroundColor: '#eef2ff', // indigo-50
-                    border: '1px solid #c7d2fe', // indigo-200
-                    borderRadius: '8px',
-                    padding: '0px',
-                    marginTop: '4px', // Margen suave para despegar del número del día
-                    marginBottom: '4px',
-                    height: 'auto',
-                    overflow: 'hidden'
-                }
-            };
+
         }
 
         return {
@@ -419,12 +408,6 @@ export default function CalendarView() {
     };
 
     const handleSelectEvent = (event: CalendarEvent) => {
-        if ((event as any).type === 'appointment_group') {
-            setDate(event.start);
-            setView(Views.DAY);
-            return;
-        }
-
         if (event.type === 'appointment' && appointments) {
             const appointment = appointments.find(a => a.id === event.id);
             if (appointment) {
@@ -491,51 +474,54 @@ export default function CalendarView() {
                 style: { backgroundColor: '#f8fafc' }
             };
         }
-
         return {};
     };
 
     return (
-        <div className="min-h-[800px] h-auto w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <DnDCalendar
-                localizer={localizer}
-                events={events}
-                startAccessor="start"
-                endAccessor="end"
-                date={date}
-                onNavigate={setDate}
-                culture="es"
-                defaultView={Views.WEEK}
-                views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-                view={view}
-                onView={setView}
-                messages={{
-                    next: "Sig.",
-                    previous: "Ant.",
-                    today: "Hoy",
-                    month: "Mes",
-                    week: "Semana",
-                    day: "Día",
-                    agenda: "Agenda",
-                }}
-                eventPropGetter={eventStyleGetter as any}
-                step={30}
-                timeslots={2}
-                selectable={true}
-                onSelectSlot={handleSelectSlot}
-                onSelectEvent={handleSelectEvent as any}
-                onEventDrop={handleEventDrop as any}
-                resizable={true}
-                onEventResize={handleEventDrop as any}
-                min={calendarMin}
-                max={calendarMax}
-                scrollToTime={new Date()}
-                className="rounded-lg overflow-hidden"
-                dayPropGetter={dayPropGetter}
-                components={{
-                    event: ((props: any) => <CustomEventComponent {...props} onReprogram={handleReprogramMenuClick} />) as any
-                }}
-            />
+        <div className={`w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col ${view === Views.MONTH ? 'h-[850px]' : 'h-auto'}`}>
+
+            <div className="flex-1 min-h-0 w-full">
+                <DnDCalendar
+                    style={{ height: '100%', width: '100%' }}
+                    localizer={localizer}
+                    events={events}
+                    startAccessor="start"
+                    endAccessor="end"
+                    date={date}
+                    onNavigate={setDate}
+                    culture="es"
+                    defaultView={Views.WEEK}
+                    views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+                    view={view}
+                    onView={setView}
+                    messages={{
+                        next: "Sig.",
+                        previous: "Ant.",
+                        today: "Hoy",
+                        month: "Mes",
+                        week: "Semana",
+                        day: "Día",
+                        agenda: "Agenda",
+                    }}
+                    eventPropGetter={eventStyleGetter as any}
+                    step={30}
+                    timeslots={2}
+                    selectable={true}
+                    onSelectSlot={handleSelectSlot}
+                    onSelectEvent={handleSelectEvent as any}
+                    onEventDrop={handleEventDrop as any}
+                    resizable={true}
+                    onEventResize={handleEventDrop as any}
+                    min={calendarMin}
+                    max={calendarMax}
+                    scrollToTime={new Date()}
+                    className="rounded-lg overflow-hidden"
+                    dayPropGetter={dayPropGetter}
+                    components={{
+                        event: ((props: any) => <CustomEventComponent {...props} view={view} onReprogram={handleReprogramMenuClick} />) as any
+                    }}
+                />
+            </div>
 
             <AppointmentDialog
                 isOpen={isDialogOpen}

@@ -7,6 +7,8 @@ import { settingsSchema, SettingsFormData } from "../types/settings.types";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { NumberInput } from "@/components/ui/number-input";
+import { Switch } from "@/components/ui/switch";
+import { Controller } from "react-hook-form";
 
 export default function SettingsForm() {
     const { user } = useAuth();
@@ -18,6 +20,7 @@ export default function SettingsForm() {
         register,
         handleSubmit,
         reset,
+        control,
         formState: { errors, isSubmitting },
     } = useForm<SettingsFormData>({
         resolver: zodResolver(settingsSchema) as any,
@@ -31,6 +34,7 @@ export default function SettingsForm() {
                 default_price: profile.default_price,
                 default_duration: profile.default_duration,
                 buffer_between_appointments: profile.buffer_between_appointments,
+                charge_no_shows: profile.charge_no_shows ?? true,
             });
         }
     }, [profile, reset]);
@@ -111,7 +115,29 @@ export default function SettingsForm() {
                 </div>
             </div>
 
-            <div className="pt-2">
+            {/* Política de Inasistencias */}
+            <div className="pt-4 pb-2 border-t flex flex-row items-center justify-between rounded-lg border p-4 mt-6">
+                <div className="space-y-0.5">
+                    <label className="text-sm font-medium text-slate-900">
+                        Cobrar Inasistencias
+                    </label>
+                    <p className="text-[13px] text-slate-500 max-w-[80%]">
+                        Si está activo, los turnos marcados como "No asistió" generarán deuda en el balance del paciente para futuras cobranzas.
+                    </p>
+                </div>
+                <Controller
+                    control={control}
+                    name="charge_no_shows"
+                    render={({ field }) => (
+                        <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                    )}
+                />
+            </div>
+
+            <div className="pt-4">
                 <button
                     type="submit"
                     disabled={isSubmitting || isPending || !professionalId}

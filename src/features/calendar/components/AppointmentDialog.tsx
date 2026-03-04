@@ -16,6 +16,7 @@ import { es } from "date-fns/locale";
 import { detectCollision } from "../utils/collisionUtils";
 import { useSettings } from "@/features/settings/hooks/useSettings";
 import { BlockData, AvailabilityData } from "../../settings/types/settings.types";
+import { createTransaction } from "@/app/actions/payments";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,8 +43,8 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
     const { user } = useAuth();
     const professionalId = user?.id || null;
     const { data: settings } = useSettings(professionalId);
-    const { mutate: createAppointment, isPending: isCreating } = useCreateAppointment(professionalId);
-    const { mutate: updateAppointment, isPending: isUpdating } = useUpdateAppointment(professionalId);
+    const { mutateAsync: createAppointmentAsync, isPending: isCreating } = useCreateAppointment(professionalId);
+    const { mutateAsync: updateAppointmentAsync, isPending: isUpdating } = useUpdateAppointment(professionalId);
 
     const [patientId, setPatientId] = useState<string>("");
     const [modality, setModality] = useState<AppointmentModality>("presencial");
@@ -56,6 +57,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
     // Controles de fecha y hora nativos
     const [dateStr, setDateStr] = useState<string>("");
     const [timeStr, setTimeStr] = useState<string>("");
+    const [partialAmount, setPartialAmount] = useState<number | string>("");
 
     const [showConflictDialog, setShowConflictDialog] = useState(false);
     const [pendingPayload, setPendingPayload] = useState<any>(null);
@@ -74,6 +76,9 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
 
             // Conservar el estado de pago de la cita al reprogramar igual que al editar
             setPayStatus(selectedAppointment.pay_status);
+            if (selectedAppointment.pay_status === 'Parcial') {
+                setPartialAmount(""); // Start empty so they only type the *new* payment if they want
+            }
 
             // Autocompletar fecha y hora
             const startD = new Date(selectedAppointment.start_at);
@@ -106,26 +111,45 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
         }
     }, [selectedAppointment, isOpen, settings, slotInfo, preselectedPatientId, mode]);
 
-    const executeSave = (payload: any) => {
-        if (mode === 'reprogram' && selectedAppointment) {
-            // Generar o arrastrar un link_id para que el historial de reprogramaciones comparta el pago
-            const sharedLinkId = selectedAppointment.link_id || crypto.randomUUID();
+    const executeSave = async (payload: any, amountToCharge: number) => {
+        try {
+            const processTransaction = async (appointmentId: string) => {
+                if (amountToCharge > 0 && patientId) {
+                    await createTransaction({
+                        patient_id: patientId,
+                        amount: amountToCharge,
+                        type: 'ingreso',
+                        method: 'efectivo',
+                        appointment_id: appointmentId,
+                        description: payStatus === 'Cobrado' ? 'Pago completo de turno' : 'Pago parcial de turno'
+                    }, Number(price) || 0); // Pass expected total
+                }
+            };
 
-            // 1. Marca la antigua como 'Reprogramada' y le asignamos el link_id (por si no lo tenía)
-            updateAppointment({
-                id: selectedAppointment.id,
-                data: { status: 'Reprogramada', link_id: sharedLinkId }
-            });
+            if (mode === 'reprogram' && selectedAppointment) {
+                const sharedLinkId = selectedAppointment.link_id || crypto.randomUUID();
 
-            // 2. Crea la nueva agregándole el mismo link_id
-            createAppointment({ ...payload, link_id: sharedLinkId }, { onSuccess: onClose });
-        } else if (mode === 'edit' && selectedAppointment) {
-            updateAppointment(
-                { id: selectedAppointment.id, data: payload },
-                { onSuccess: onClose }
-            );
-        } else {
-            createAppointment(payload, { onSuccess: onClose });
+                await updateAppointmentAsync({
+                    id: selectedAppointment.id,
+                    data: { status: 'Reprogramada', link_id: sharedLinkId }
+                });
+
+                const newApp = await createAppointmentAsync({ ...payload, link_id: sharedLinkId });
+                if (newApp && newApp.id) await processTransaction(newApp.id);
+                onClose();
+
+            } else if (mode === 'edit' && selectedAppointment) {
+                await updateAppointmentAsync({ id: selectedAppointment.id, data: payload });
+                await processTransaction(selectedAppointment.id);
+                onClose();
+
+            } else {
+                const newApp = await createAppointmentAsync(payload);
+                if (newApp && newApp.id) await processTransaction(newApp.id);
+                onClose();
+            }
+        } catch (error) {
+            console.error("Error al guardar el turno o registrar el pago", error);
         }
     };
 
@@ -142,11 +166,17 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
         const finalDuration = Math.max(1, Number(duration) || settings?.default_duration || 60);
         const end = addMinutes(start, finalDuration);
 
-        let finalPaidAmount = 0;
-        if (payStatus === 'Cobrado') {
-            finalPaidAmount = Number(price);
-        } else if (payStatus === 'Parcial' || payStatus === 'OS_pendiente') {
-            finalPaidAmount = selectedAppointment?.paid_amount || 0;
+        let amountToCharge = 0;
+        let finalPaidAmount = selectedAppointment?.paid_amount || 0;
+
+        if (payStatus === 'Cobrado' && selectedAppointment?.pay_status !== 'Cobrado') {
+            amountToCharge = Number(price) - finalPaidAmount;
+        } else if (payStatus === 'Parcial' && Number(partialAmount) > 0) {
+            amountToCharge = Number(partialAmount);
+        }
+
+        if (amountToCharge > 0) {
+            finalPaidAmount += amountToCharge;
         }
 
         const payload = {
@@ -166,10 +196,11 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
         const hasCollision = detectCollision(start, end, blocks, availability);
 
         if (hasCollision) {
-            setPendingPayload(payload);
+            // Guardamos el amountToCharge también en un ref o state si el usuario presiona "Agendar de todas formas"
+            setPendingPayload({ payload, amountToCharge });
             setShowConflictDialog(true);
         } else {
-            executeSave(payload);
+            executeSave(payload, amountToCharge);
         }
     };
 
@@ -248,19 +279,40 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold">¿Ya está pagado en su totalidad?</Label>
-                            <p className="text-xs text-slate-500">
-                                {payStatus === 'Parcial'
-                                    ? "Este turno tiene un cobro parcial. Al activarlo pasará a Cobrado total."
-                                    : "Activa si el paciente ya abonó el precio completo."}
+                    <div className="space-y-3 p-4 bg-slate-50/70 rounded-xl border border-slate-200 shadow-sm">
+                        <Label className="text-sm font-semibold text-slate-800">Estado de Cobro</Label>
+                        <Select value={payStatus} onValueChange={(v: any) => setPayStatus(v)}>
+                            <SelectTrigger className="bg-white">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Pendiente">Pendiente (No pagó)</SelectItem>
+                                <SelectItem value="Parcial">Cobro Parcial (Seña / Entrega)</SelectItem>
+                                <SelectItem value="Cobrado">Pagado ({Number(price) ? `Total de $${price}` : 'Total'})</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {payStatus === 'Parcial' && (
+                            <div className="mt-3 bg-white p-3 rounded-md border shadow-sm space-y-2 animate-in fade-in duration-300">
+                                <Label className="text-xs font-semibold text-blue-700">Monto ingresado por el paciente HOY</Label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 font-medium">$</span>
+                                    <Input
+                                        type="number"
+                                        placeholder="Ej: 5000"
+                                        value={partialAmount}
+                                        onChange={(e) => setPartialAmount(e.target.value)}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <p className="text-[11px] text-slate-500">Se crearán automáticamente los movimientos de caja correspondientes en efectivo.</p>
+                            </div>
+                        )}
+                        {payStatus === 'Cobrado' && selectedAppointment?.pay_status !== 'Cobrado' && (
+                            <p className="text-xs text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-100 font-medium animate-in fade-in duration-300">
+                                Se registrará automáticamente un ingreso en caja en efectivo cancelando la deuda del turno.
                             </p>
-                        </div>
-                        <Switch
-                            checked={payStatus === 'Cobrado'}
-                            onCheckedChange={(checked) => setPayStatus(checked ? 'Cobrado' : 'Pendiente')}
-                        />
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -318,7 +370,7 @@ export default function AppointmentDialog({ isOpen, onClose, slotInfo, selectedA
                     <AlertDialogFooter>
                         <AlertDialogCancel>Volver a editar</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={() => executeSave(pendingPayload)}
+                            onClick={() => executeSave(pendingPayload.payload, pendingPayload.amountToCharge)}
                             className="bg-indigo-600 hover:bg-indigo-700"
                         >
                             Agendar de todas formas
