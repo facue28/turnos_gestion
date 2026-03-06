@@ -2,6 +2,21 @@ import { createClient } from "@/utils/supabase/client";
 const supabase = createClient();
 import { ProfileData, SettingsFormData, AvailabilityData, BlockData } from "../types/settings.types";
 
+// Helper: obtiene el tenant_id del perfil del profesional
+async function getTenantId(professionalId: string): Promise<string> {
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("tenant_id")
+        .eq("id", professionalId)
+        .single();
+
+    if (error || !data?.tenant_id) {
+        console.error("Error fetching tenant_id:", error);
+        throw new Error("No se pudo obtener el tenant_id del profesional");
+    }
+    return data.tenant_id;
+}
+
 export const settingsService = {
     // Profiles
     async getProfile(professionalId: string): Promise<ProfileData> {
@@ -36,9 +51,10 @@ export const settingsService = {
     },
 
     async addAvailability(professionalId: string, payload: Omit<AvailabilityData, "id" | "professional_id">): Promise<void> {
+        const tenantId = await getTenantId(professionalId);
         const { error } = await supabase
             .from("weekly_availability")
-            .insert({ ...payload, professional_id: professionalId });
+            .insert({ ...payload, professional_id: professionalId, tenant_id: tenantId });
 
         if (error) throw new Error(error.message);
     },
@@ -53,7 +69,9 @@ export const settingsService = {
         if (error) throw new Error(error.message);
     },
 
-    async replaceAvailability(professionalId: string, _unused: string, payload: Omit<AvailabilityData, "id" | "professional_id">[]): Promise<void> {
+    async replaceAvailability(professionalId: string, payload: Omit<AvailabilityData, "id" | "professional_id">[]): Promise<void> {
+        const tenantId = await getTenantId(professionalId);
+
         // Delete all existing for this professional
         const { error: deleteError } = await supabase
             .from("weekly_availability")
@@ -65,7 +83,8 @@ export const settingsService = {
         if (payload.length > 0) {
             const insertPayload = payload.map(p => ({
                 ...p,
-                professional_id: professionalId
+                professional_id: professionalId,
+                tenant_id: tenantId
             }));
             const { error: insertError } = await supabase
                 .from("weekly_availability")
@@ -88,9 +107,10 @@ export const settingsService = {
     },
 
     async addBlock(professionalId: string, payload: Omit<BlockData, "id" | "professional_id">): Promise<void> {
+        const tenantId = await getTenantId(professionalId);
         const { error } = await supabase
             .from("blocks")
-            .insert({ ...payload, professional_id: professionalId });
+            .insert({ ...payload, professional_id: professionalId, tenant_id: tenantId });
 
         if (error) throw new Error(error.message);
     },

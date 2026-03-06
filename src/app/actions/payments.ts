@@ -55,15 +55,13 @@ export async function createTransaction(payload: CreateTransactionPayload, expec
             await supabase
                 .from("appointments")
                 .update({ pay_status: newPayStatus, paid_amount: newTotalPaid })
-                .eq("link_id", appData.link_id)
-                .eq("professional_id", user.id);
+                .eq("link_id", appData.link_id);
         } else {
             // Actualizar solo este turno
             await supabase
                 .from("appointments")
                 .update({ pay_status: newPayStatus, paid_amount: newTotalPaid })
-                .eq("id", payload.appointment_id)
-                .eq("professional_id", user.id);
+                .eq("id", payload.appointment_id);
         }
     }
 
@@ -98,7 +96,6 @@ export async function getPatientBalance(patientId: string, chargeNoShows: boolea
         .from("appointments")
         .select("price, status")
         .eq("patient_id", patientId)
-        .eq("professional_id", user.id)
         .in("status", allowedStatuses);
 
     const totalDebt = (appointments || []).reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
@@ -108,7 +105,6 @@ export async function getPatientBalance(patientId: string, chargeNoShows: boolea
         .from("transactions")
         .select("amount")
         .eq("patient_id", patientId)
-        .eq("professional_id", user.id)
         .eq("type", "ingreso");
 
     const totalPaid = (transactions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
@@ -170,7 +166,6 @@ export async function getFinancialMetrics(startDate: Date, endDate: Date) {
     const { data: transactions } = await supabase
         .from("transactions")
         .select("amount")
-        .eq("professional_id", user.id)
         .eq("type", "ingreso")
         .gte("created_at", startDate.toISOString())
         .lte("created_at", endDate.toISOString());
@@ -193,7 +188,6 @@ export async function getFinancialMetrics(startDate: Date, endDate: Date) {
     const { data: unpaidAppointments } = await supabase
         .from("appointments")
         .select("price, paid_amount")
-        .eq("professional_id", user.id)
         .in("status", allowedStatuses)
         // A nivel general, un turno genera deuda si su pay_status no es "Cobrado"
         .neq("pay_status", "Cobrado");
@@ -224,7 +218,6 @@ export async function getRecentTransactions(startDate: Date, endDate: Date) {
             patient:patients(name),
             appointment:appointments(price)
         `)
-        .eq("professional_id", user.id)
         .gte("created_at", startDate.toISOString())
         .lte("created_at", endDate.toISOString())
         .order("created_at", { ascending: false });

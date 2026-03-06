@@ -130,7 +130,6 @@ export async function getPatientHistory(patientId: string, limitCount?: number) 
             price
         `)
         .eq('patient_id', patientId)
-        .eq('professional_id', user.id)
         .order('start_at', { ascending: false });
 
     if (limitCount) {
@@ -164,7 +163,6 @@ export async function getAppointmentsForExport(startDate: Date, endDate: Date) {
             price,
             patient:patients ( name )
         `)
-        .eq('professional_id', user.id)
         .gte('start_at', startDate.toISOString())
         .lte('start_at', endDate.toISOString())
         .order('start_at', { ascending: true });

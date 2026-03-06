@@ -72,7 +72,7 @@ export const useReplaceAvailability = (professionalId: string | null) => {
 
     return useMutation({
         mutationFn: ({ professionalId: profId, data }: { professionalId: string, data: Omit<AvailabilityData, "id" | "professional_id">[] }) =>
-            settingsService.replaceAvailability(professionalId!, profId, data),
+            settingsService.replaceAvailability(profId, data),
         onSuccess: () => {
             toast.success("Horarios actualizados exitosamente");
             queryClient.invalidateQueries({ queryKey: ["availability", professionalId] });

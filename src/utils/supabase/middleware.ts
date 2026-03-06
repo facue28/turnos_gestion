@@ -27,8 +27,63 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
-    // refreshing the auth token
-    await supabase.auth.getUser();
+    // Refreshing the auth token
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    // Guard: Protegemos la ruta /admin (Middlewares Layer)
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+        if (!user) {
+            const url = request.nextUrl.clone();
+            url.pathname = '/login';
+            return NextResponse.redirect(url);
+        }
+
+        const { data, error } = await supabase
+            .from('platform_admins')
+            .select('user_id')
+            .eq('user_id', user.id)
+            .single();
+
+        if (error || !data) {
+            // No es Súper Admin → Redirigimos al Dashboard del profesional
+            const url = request.nextUrl.clone();
+            url.pathname = '/hoy';
+            return NextResponse.redirect(url);
+        }
+    }
+
+    // Guard para otras páginas privadas
+    if (!user) {
+        if (!request.nextUrl.pathname.startsWith('/login')) {
+            const url = request.nextUrl.clone();
+            url.pathname = '/login';
+            return NextResponse.redirect(url);
+        }
+    } else {
+        // Usuario autenticado -> Verificar Onboarding
+        // Excluimos /onboarding, /admin, y archivos estáticos (aunque matcher ya filtra algunos)
+        const isInternalPage = request.nextUrl.pathname.startsWith('/hoy') ||
+            request.nextUrl.pathname.startsWith('/calendario') ||
+            request.nextUrl.pathname.startsWith('/pacientes') ||
+            request.nextUrl.pathname.startsWith('/ajustes') ||
+            request.nextUrl.pathname.startsWith('/caja');
+
+        if (isInternalPage) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', user.id)
+                .single();
+
+            if (!profile?.full_name) {
+                const url = request.nextUrl.clone();
+                url.pathname = '/onboarding';
+                return NextResponse.redirect(url);
+            }
+        }
+    }
 
     return supabaseResponse;
 }

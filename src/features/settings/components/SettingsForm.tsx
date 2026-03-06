@@ -9,6 +9,8 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { NumberInput } from "@/components/ui/number-input";
 import { Switch } from "@/components/ui/switch";
 import { Controller } from "react-hook-form";
+import { Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function SettingsForm() {
     const { user } = useAuth();
@@ -21,7 +23,7 @@ export default function SettingsForm() {
         handleSubmit,
         reset,
         control,
-        formState: { errors, isSubmitting },
+        formState: { errors, isSubmitting, isDirty },
     } = useForm<SettingsFormData>({
         resolver: zodResolver(settingsSchema) as any,
     });
@@ -35,6 +37,8 @@ export default function SettingsForm() {
                 default_duration: profile.default_duration,
                 buffer_between_appointments: profile.buffer_between_appointments,
                 charge_no_shows: profile.charge_no_shows ?? true,
+                full_name: profile.full_name || "",
+                profession: profile.profession || "",
             });
         }
     }, [profile, reset]);
@@ -44,25 +48,77 @@ export default function SettingsForm() {
         updateSettings(data);
     };
 
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
     if (isLoading) {
         return <div className="text-sm text-slate-500 animate-pulse">Cargando configuración...</div>;
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
+
+                {/* Nombre Completo */}
+                <div className="space-y-2 md:col-span-2 lg:col-span-1">
+                    <label htmlFor="full_name" className="text-sm font-medium text-slate-700">
+                        Nombre Completo
+                    </label>
+                    <input
+                        id="full_name"
+                        type="text"
+                        {...register("full_name")}
+                        placeholder="Ej. Dr. Juan Pérez"
+                        className="w-full px-3 py-2 border rounded-md text-slate-900 focus:ring-2 focus:ring-indigo-500 bg-white"
+                        disabled={isPending || isSubmitting}
+                    />
+                    {errors.full_name && (
+                        <p className="text-xs text-red-600">{errors.full_name.message}</p>
+                    )}
+                </div>
+
+                {/* Profesión */}
+                <div className="space-y-2 md:col-span-2 lg:col-span-1">
+                    <label htmlFor="profession" className="text-sm font-medium text-slate-700">
+                        Profesión / Título visible
+                    </label>
+                    <input
+                        id="profession"
+                        type="text"
+                        {...register("profession")}
+                        placeholder="Ej. Psicólogo, Odontóloga..."
+                        className="w-full px-3 py-2 border rounded-md text-slate-900 focus:ring-2 focus:ring-indigo-500 bg-white"
+                        disabled={isPending || isSubmitting}
+                    />
+                    {errors.profession && (
+                        <p className="text-xs text-red-600">{errors.profession.message}</p>
+                    )}
+                </div>
 
                 {/* Currency */}
                 <div className="space-y-2">
                     <label htmlFor="currency" className="text-sm font-medium text-slate-700">
-                        Moneda (ISO)
+                        Moneda Base
                     </label>
-                    <input
+                    <select
                         id="currency"
                         {...register("currency")}
-                        className="w-full px-3 py-2 border rounded-md text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                        placeholder="EUR"
-                    />
+                        className="w-full px-3 py-2 border rounded-md text-slate-900 focus:ring-2 focus:ring-indigo-500 bg-white"
+                        disabled={isPending || isSubmitting}
+                    >
+                        <option value="ARS">ARS$ (Pesos Argentinos)</option>
+                        <option value="USD">US$ (Dólares)</option>
+                        <option value="EUR">EUR€ (Euros)</option>
+                    </select>
                     {errors.currency && (
                         <p className="text-xs text-red-600">{errors.currency.message}</p>
                     )}
@@ -116,12 +172,12 @@ export default function SettingsForm() {
             </div>
 
             {/* Política de Inasistencias */}
-            <div className="pt-4 pb-2 border-t flex flex-row items-center justify-between rounded-lg border p-4 mt-6">
-                <div className="space-y-0.5">
+            <div className="flex items-center justify-between py-2 border-b border-slate-100 px-4 bg-slate-50/50 rounded-lg">
+                <div className="space-y-0.5 max-w-[80%]">
                     <label className="text-sm font-medium text-slate-900">
                         Cobrar Inasistencias
                     </label>
-                    <p className="text-[13px] text-slate-500 max-w-[80%]">
+                    <p className="text-[13px] text-slate-500">
                         Si está activo, los turnos marcados como "No asistió" generarán deuda en el balance del paciente para futuras cobranzas.
                     </p>
                 </div>
@@ -137,14 +193,15 @@ export default function SettingsForm() {
                 />
             </div>
 
-            <div className="pt-4">
-                <button
+            <div className="pt-4 flex justify-end">
+                <Button
                     type="submit"
-                    disabled={isSubmitting || isPending || !professionalId}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    disabled={isSubmitting || isPending || !professionalId || !isDirty}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2"
                 >
+                    <Save className="w-4 h-4" />
                     {(isSubmitting || isPending) ? "Guardando..." : "Guardar Cambios"}
-                </button>
+                </Button>
             </div>
         </form>
     );

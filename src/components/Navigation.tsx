@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Users, Settings, LogOut, Calendar, CircleDollarSign } from "lucide-react";
+import { CalendarDays, Users, Settings, LogOut, Calendar, CircleDollarSign, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { UserProfileBadge } from "@/components/UserProfileBadge";
 
 export function Navigation() {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { signOut, isPlatformAdmin } = useAuth();
 
   const navItems = [
     { label: 'Hoy', href: '/hoy', icon: CalendarDays },
@@ -16,6 +17,10 @@ export function Navigation() {
     { label: 'Caja', href: '/caja', icon: CircleDollarSign },
     { label: 'Ajustes', href: '/ajustes', icon: Settings },
   ];
+
+  if (isPlatformAdmin) {
+    navItems.push({ label: 'Súper Admin', href: '/admin', icon: ShieldAlert });
+  }
 
   return (
     <>
@@ -45,6 +50,7 @@ export function Navigation() {
         </nav>
 
         <div className="p-4 border-t">
+          <UserProfileBadge />
           <button
             type="button"
             onClick={() => signOut()}

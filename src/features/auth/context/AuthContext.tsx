@@ -10,6 +10,7 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     isDemoMode: boolean;
+    isPlatformAdmin: boolean;
     authError: string | null;
     signOut: () => Promise<void>;
 }
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
     user: null,
     loading: true,
     isDemoMode: false,
+    isPlatformAdmin: false,
     authError: null,
     signOut: async () => { },
 });
@@ -28,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
+    const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
 
@@ -77,7 +80,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [supabase, router]);
 
-    const isDemoMode = user?.email === 'demo@turnos-gestion.local';
+    // Verificar Rol de Administrador Súper de Plataforma
+    useEffect(() => {
+        let mounted = true;
+
+        async function checkAdminStatus() {
+            if (!user) {
+                if (mounted) setIsPlatformAdmin(false);
+                return;
+            }
+            try {
+                const { data } = await supabase
+                    .from('platform_admins')
+                    .select('user_id')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (mounted) {
+                    setIsPlatformAdmin(!!data);
+                }
+            } catch (error) {
+                if (mounted) setIsPlatformAdmin(false);
+            }
+        }
+
+        checkAdminStatus();
+
+        return () => {
+            mounted = false;
+        };
+    }, [user?.id, supabase]);
+
+    const isDemoMode = user?.email === process.env.NEXT_PUBLIC_DEMO_EMAIL;
 
     const signOut = async () => {
         try {
@@ -94,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user,
             loading,
             isDemoMode,
+            isPlatformAdmin,
             authError,
             signOut
         }}>
