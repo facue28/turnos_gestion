@@ -14,13 +14,13 @@ export async function updateSession(request: NextRequest) {
                 getAll() {
                     return request.cookies.getAll();
                 },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value, options as CookieOptions));
+                setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set({ name, value, ...options }));
                     supabaseResponse = NextResponse.next({
                         request,
                     });
                     cookiesToSet.forEach(({ name, value, options }) =>
-                        supabaseResponse.cookies.set(name, value, options as CookieOptions)
+                        supabaseResponse.cookies.set({ name, value, ...options })
                     );
                 },
             },
