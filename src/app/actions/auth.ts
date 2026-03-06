@@ -21,3 +21,19 @@ export async function signOutAction() {
     revalidatePath("/", "layout");
     redirect("/login");
 }
+
+export async function updatePasswordAction(password: string) {
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.updateUser({
+        password: password
+    });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    // Tras establecer la clave, revalidar y enviar al onboarding
+    revalidatePath("/", "layout");
+    redirect("/onboarding");
+}
