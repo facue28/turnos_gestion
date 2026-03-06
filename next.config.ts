@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+// Configuración de Next.js para Agenda SaaS - Preset: Next.js en Vercel
+
 const nextConfig: NextConfig = {
     // Transpile packages that don't ship ESM
     transpilePackages: ["react-big-calendar"],
