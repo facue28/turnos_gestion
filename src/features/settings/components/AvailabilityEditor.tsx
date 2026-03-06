@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useAvailability, useReplaceAvailability } from "../hooks/useSettings";
-import { Trash2, Copy, Plus, Clock, Save } from "lucide-react";
+import { Trash2, Copy, Plus, Clock, Save, Pencil } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -117,6 +117,16 @@ export default function AvailabilityEditor() {
         remove(indexToDelete);
     };
 
+    const handleEditBlock = (indexToEdit: number, dayId: number, start: string, end: string) => {
+        // Volcar las horas de este bloque al input
+        setNewSlotInputs(prev => ({
+            ...prev,
+            [dayId]: { start, end }
+        }));
+        // Eliminar el bloque de la lista, forzando a que el usuario modifique y presione '+'
+        remove(indexToEdit);
+    };
+
     // Magic Copy: Replica los horarios del día elegido a TODOS los demás días "Activos" (seleccionados en el toggle)
     const applyToAllActive = (sourceDayId: number) => {
         const sourceHours = blocks.filter(b => b.weekday === sourceDayId);
@@ -177,8 +187,20 @@ export default function AvailabilityEditor() {
         }
     };
 
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = ''; // Necesario para Chrome
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
     if (isLoading || !hasSmartLoaded) {
-        return <div className="animate-pulse text-sm text-slate-500 py-10 text-center">Cargando grilla de disponibilidad...</div>;
+        return <div className="text-sm text-slate-500 animate-pulse">Cargando disponibilidad...</div>;
     }
 
     // Obtener los días que debemos renderizar (ordenados según displayOrder)
@@ -193,7 +215,7 @@ export default function AvailabilityEditor() {
                 </div>
                 <Button
                     type="submit"
-                    disabled={isSaving || !professionalId}
+                    disabled={isSaving || !professionalId || !isDirty}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2"
                 >
                     <Save className="w-4 h-4" />
@@ -283,19 +305,30 @@ export default function AvailabilityEditor() {
                                     ) : (
                                         <div className="flex flex-wrap gap-3">
                                             {dayBlocksList.map(item => (
-                                                <div key={item.originalIndex} className="group flex items-center gap-2 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 pl-4 pr-2 py-2 rounded-full w-fit transition-all">
-                                                    <span className="text-sm font-semibold text-indigo-900 tracking-tight">
+                                                <div key={item.originalIndex} className="group flex items-center gap-1.5 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 pl-4 pr-1 py-1 rounded-full w-fit transition-all">
+                                                    <span className="text-sm font-semibold text-indigo-900 tracking-tight pr-1">
                                                         {item.start_time} - {item.end_time}
                                                     </span>
-                                                    <button
-                                                        type="button"
-                                                        disabled={isSaving}
-                                                        onClick={() => handleDeleteBlock(item.originalIndex)}
-                                                        className="p-1.5 text-indigo-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all disabled:opacity-50"
-                                                        title="Eliminar franja"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    <div className="flex items-center">
+                                                        <button
+                                                            type="button"
+                                                            disabled={isSaving}
+                                                            onClick={() => handleEditBlock(item.originalIndex, item.weekday, item.start_time, item.end_time)}
+                                                            className="p-1.5 text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100/50 rounded-full transition-all disabled:opacity-50"
+                                                            title="Editar franja"
+                                                        >
+                                                            <Pencil size={15} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={isSaving}
+                                                            onClick={() => handleDeleteBlock(item.originalIndex)}
+                                                            className="p-1.5 text-indigo-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all disabled:opacity-50"
+                                                            title="Eliminar franja"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -304,24 +337,24 @@ export default function AvailabilityEditor() {
 
                                 {/* Formulario Inline falso para agregar un rango localmente */}
                                 <div className="flex items-center gap-3 md:w-auto w-full md:border-l md:pl-6 border-slate-100 pt-4 md:pt-0 border-t md:border-t-0 shrink-0">
-                                    <div className="flex items-center gap-2 w-full">
-                                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                                    <div className="flex flex-wrap items-center gap-2 w-full sm:flex-nowrap">
+                                        <div className="flex-1 sm:flex-none flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
                                             <input
                                                 type="time"
                                                 id={`start_time_${d}`}
-                                                className="px-1 py-1.5 text-sm font-medium text-slate-700 bg-transparent w-24 outline-none"
+                                                className="px-1 py-1.5 text-base sm:text-sm font-medium text-slate-700 bg-transparent w-full sm:w-24 outline-none min-h-[44px] sm:min-h-0"
                                                 value={newSlotInputs[d]?.start ?? ""}
                                                 onChange={(e) => setNewSlotInputs(prev => ({ ...prev, [d]: { ...prev[d], start: e.target.value, end: prev[d]?.end ?? "" } }))}
                                             />
                                         </div>
 
-                                        <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">a</span>
+                                        <span className="text-slate-400 text-xs font-bold uppercase tracking-wider px-1">a</span>
 
-                                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                                        <div className="flex-1 sm:flex-none flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
                                             <input
                                                 type="time"
                                                 id={`end_time_${d}`}
-                                                className="px-1 py-1.5 text-sm font-medium text-slate-700 bg-transparent w-24 outline-none"
+                                                className="px-1 py-1.5 text-base sm:text-sm font-medium text-slate-700 bg-transparent w-full sm:w-24 outline-none min-h-[44px] sm:min-h-0"
                                                 value={newSlotInputs[d]?.end ?? ""}
                                                 onChange={(e) => setNewSlotInputs(prev => ({ ...prev, [d]: { ...prev[d], end: e.target.value, start: prev[d]?.start ?? "" } }))}
                                             />
@@ -333,7 +366,7 @@ export default function AvailabilityEditor() {
                                             variant="secondary"
                                             disabled={isSaving || !professionalId}
                                             onClick={() => handleAddBlock(d)}
-                                            className="h-10 w-10 shrink-0 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm border border-indigo-100/50 rounded-lg transition-all"
+                                            className="h-[44px] w-[44px] sm:h-10 sm:w-10 shrink-0 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm border border-indigo-100/50 rounded-lg transition-all"
                                             title="Añadir franja horaria local"
                                         >
                                             <Plus className="w-5 h-5" />

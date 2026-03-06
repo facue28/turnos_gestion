@@ -96,7 +96,7 @@ export default async function PatientHistoryPage({ params }: { params: Promise<{
                 </Card>
 
                 {/* Tabla de Historial */}
-                <Card className="border-slate-200 shadow-sm">
+                <Card className="border-slate-200 shadow-sm overflow-hidden">
                     <CardHeader className="border-b bg-slate-50/50">
                         <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
                             <Calendar className="w-5 h-5 text-slate-400" />
@@ -104,53 +104,91 @@ export default async function PatientHistoryPage({ params }: { params: Promise<{
                         </CardTitle>
                     </CardHeader>
                     {historyData && historyData.length > 0 ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-slate-50 hover:bg-slate-50">
-                                    <TableHead className="font-semibold text-slate-600">Fecha</TableHead>
-                                    <TableHead className="font-semibold text-slate-600">Modalidad</TableHead>
-                                    <TableHead className="font-semibold text-slate-600">Estado</TableHead>
-                                    <TableHead className="font-semibold text-slate-600">Pago</TableHead>
-                                    <TableHead className="font-semibold text-slate-600 text-right">Monto</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        <div className="">
+                            {/* VISTA MÓVIL: Patrón de Lista (Cards) */}
+                            <div className="md:hidden flex flex-col divide-y divide-slate-100">
                                 {historyData.map((app) => (
-                                    <TableRow key={app.id} className="hover:bg-slate-50/50">
-                                        <TableCell>
+                                    <div key={app.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                                        <div className="flex justify-between items-start">
                                             <div className="flex flex-col">
-                                                <span className="font-semibold text-slate-800">
-                                                    {format(parseISO(app.start_at), "dd MMM yyyy", { locale: es })}
+                                                <span className="font-bold text-slate-900">
+                                                    {format(parseISO(app.start_at), "dd/MM/yyyy", { locale: es })}
                                                 </span>
-                                                <span className="text-xs text-slate-500">
-                                                    {format(parseISO(app.start_at), "HH:mm")} hs
+                                                <span className="text-[11px] text-slate-500 uppercase font-medium mt-0.5">
+                                                    {app.modality}
                                                 </span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="text-[10px] uppercase tracking-tighter bg-slate-50 border-slate-200 text-slate-500">
-                                                {app.modality}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {app.status === 'Realizada' && <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">Realizada</Badge>}
-                                            {app.status === 'No_asistio' && <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">No asistió</Badge>}
-                                            {(app.status === 'Cancelada' || app.status === 'Reprogramada') && <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200">{app.status}</Badge>}
-                                            {(app.status === 'Nueva' || app.status === 'Confirmada') && <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200">{app.status}</Badge>}
-                                        </TableCell>
-                                        <TableCell>
+                                            <div className="font-bold text-slate-700">
+                                                ${app.price?.toLocaleString("es-AR") || 0}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                {app.status === 'Realizada' && <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px]">Realizada</Badge>}
+                                                {app.status === 'No_asistio' && <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 text-[10px]">No asistió</Badge>}
+                                                {(app.status === 'Cancelada' || app.status === 'Reprogramada') && <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200 text-[10px]">{app.status}</Badge>}
+                                                {(app.status === 'Nueva' || app.status === 'Confirmada') && <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 text-[10px]">{app.status}</Badge>}
+                                            </div>
                                             <div className="flex items-center gap-1.5">
                                                 {app.pay_status === 'Cobrado' ? <span className="w-2 h-2 rounded-full bg-emerald-500"></span> : <span className="w-2 h-2 rounded-full bg-amber-500"></span>}
-                                                <span className="text-sm text-slate-600 capitalize">{app.pay_status}</span>
+                                                <span className="text-[11px] text-slate-600 font-medium uppercase">{app.pay_status}</span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium text-slate-700">
-                                            ${app.price?.toLocaleString("es-AR") || 0}
-                                        </TableCell>
-                                    </TableRow>
+                                        </div>
+                                    </div>
                                 ))}
-                            </TableBody>
-                        </Table>
+                            </div>
+
+                            {/* VISTA ESCRITORIO: Tabla Original */}
+                            <div className="hidden md:block w-full overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                            <TableHead className="font-semibold text-slate-600 pl-6">Fecha</TableHead>
+                                            <TableHead className="font-semibold text-slate-600">Modalidad</TableHead>
+                                            <TableHead className="font-semibold text-slate-600">Estado</TableHead>
+                                            <TableHead className="font-semibold text-slate-600">Pago</TableHead>
+                                            <TableHead className="font-semibold text-slate-600 text-right pr-6">Monto</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {historyData.map((app) => (
+                                            <TableRow key={app.id} className="hover:bg-slate-50/50 transition-colors">
+                                                <TableCell className="pl-6">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-semibold text-slate-800">
+                                                            {format(parseISO(app.start_at), "dd MMM yyyy", { locale: es })}
+                                                        </span>
+                                                        <span className="text-xs text-slate-500">
+                                                            {format(parseISO(app.start_at), "HH:mm")} hs
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="text-[10px] uppercase tracking-tighter bg-slate-50 border-slate-200 text-slate-500">
+                                                        {app.modality}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {app.status === 'Realizada' && <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">Realizada</Badge>}
+                                                    {app.status === 'No_asistio' && <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">No asistió</Badge>}
+                                                    {(app.status === 'Cancelada' || app.status === 'Reprogramada') && <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200">{app.status}</Badge>}
+                                                    {(app.status === 'Nueva' || app.status === 'Confirmada') && <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200">{app.status}</Badge>}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1.5">
+                                                        {app.pay_status === 'Cobrado' ? <span className="w-2 h-2 rounded-full bg-emerald-500"></span> : <span className="w-2 h-2 rounded-full bg-amber-500"></span>}
+                                                        <span className="text-sm text-slate-600 capitalize">{app.pay_status}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium text-slate-700 pr-6">
+                                                    ${app.price?.toLocaleString("es-AR") || 0}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
                     ) : (
                         <div className="p-8 text-center text-slate-500">
                             <p>No hay turnos registrados en el historial de este paciente.</p>

@@ -68,9 +68,13 @@ export default async function CajaPage(props: { searchParams: Promise<{ [key: st
                     </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <DateRangeFilter />
-                    <ExportButton transactions={transactions} appointments={appointmentsForExport} startDate={startDate} endDate={endDate} />
+                <div className="flex flex-col sm:flex-row items-center w-full sm:w-auto gap-2">
+                    <div className="flex-1 sm:flex-none w-full sm:w-auto">
+                        <DateRangeFilter />
+                    </div>
+                    <div className="shrink-0 w-full sm:w-auto">
+                        <ExportButton transactions={transactions} appointments={appointmentsForExport} startDate={startDate} endDate={endDate} />
+                    </div>
                 </div>
             </header>
 
@@ -121,42 +125,71 @@ export default async function CajaPage(props: { searchParams: Promise<{ [key: st
                         <p className="text-sm">No se registraron ingresos en el período seleccionado.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                                <tr>
-                                    <th className="px-4 md:px-6 py-4 font-medium">Fecha</th>
-                                    <th className="px-4 md:px-6 py-4 font-medium">Paciente</th>
-                                    <th className="px-4 md:px-6 py-4 font-medium hidden md:table-cell">Descripción</th>
-                                    <th className="px-4 md:px-6 py-4 font-medium text-center">Método</th>
-                                    <th className="px-4 md:px-6 py-4 font-medium text-right">Monto</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {transactions.map((t: any) => (
-                                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 md:px-6 py-4 text-slate-500 whitespace-nowrap">
-                                            <span className="md:hidden">{format(new Date(t.created_at), "dd/MM HH:mm")}</span>
-                                            <span className="hidden md:inline">{format(new Date(t.created_at), "dd/MM/yyyy HH:mm")}</span>
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4 font-medium text-slate-900">
+                    <div className="">
+                        {/* VISTA MÓVIL: Patrón de Lista (Lista de Tarjetas) */}
+                        <div className="md:hidden flex flex-col divide-y divide-slate-100">
+                            {transactions.map((t: any) => (
+                                <div key={t.id} className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                                    <div className="flex flex-col gap-1 overflow-hidden pr-3 text-left">
+                                        <span className="font-semibold text-slate-900 truncate">
                                             {t.patient?.name || "N/A"}
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4 text-slate-600 hidden md:table-cell">
-                                            {t.description || "-"}
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4 text-center">
-                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] md:text-[11px] font-medium bg-white text-slate-600 capitalize border border-slate-200 shadow-sm">
+                                        </span>
+                                        <span className="text-xs text-slate-500 truncate">
+                                            {t.description || "Sin descripción"}
+                                        </span>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] text-slate-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded capitalize">
                                                 {t.method.replace('_', ' ')}
                                             </span>
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4 text-right font-semibold text-emerald-600">
-                                            +${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                        </td>
+                                            <span className="text-[10px] text-slate-400">
+                                                {format(new Date(t.created_at), "dd/MM HH:mm")}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="font-bold text-emerald-600 whitespace-nowrap text-right">
+                                        +${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* VISTA ESCRITORIO: La tabla original intacta */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                    <tr>
+                                        <th className="px-4 md:px-6 py-4 font-medium">Fecha</th>
+                                        <th className="px-4 md:px-6 py-4 font-medium">Paciente</th>
+                                        <th className="px-4 md:px-6 py-4 font-medium hidden md:table-cell">Descripción</th>
+                                        <th className="px-4 md:px-6 py-4 font-medium text-center">Método</th>
+                                        <th className="px-4 md:px-6 py-4 font-medium text-right">Monto</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {transactions.map((t: any) => (
+                                        <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-4 md:px-6 py-4 text-slate-500 whitespace-nowrap">
+                                                <span className="hidden md:inline">{format(new Date(t.created_at), "dd/MM/yyyy HH:mm")}</span>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 font-medium text-slate-900">
+                                                {t.patient?.name || "N/A"}
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 text-slate-600 hidden md:table-cell">
+                                                {t.description || "-"}
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 text-center">
+                                                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] md:text-[11px] font-medium bg-white text-slate-600 capitalize border border-slate-200 shadow-sm">
+                                                    {t.method.replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 text-right font-semibold text-emerald-600">
+                                                +${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>

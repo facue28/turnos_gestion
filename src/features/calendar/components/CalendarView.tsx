@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSwipeable } from "react-swipeable";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { format, parse, startOfWeek, endOfWeek, getDay, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
@@ -16,8 +17,6 @@ import { CalendarEvent, AppointmentData } from "../types/calendar.types";
 import { detectCollision } from "../utils/collisionUtils";
 import AppointmentDialog from "./AppointmentDialog";
 import { logToTerminal } from "@/app/actions/log";
-import { MoreHorizontal, CheckCircle2, Clock, XCircle, AlertCircle, Lock, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,6 +25,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, MoreHorizontal, CheckCircle2, Clock, XCircle, AlertCircle, Lock, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { addMonths, addWeeks, addDays, subMonths, subWeeks, subDays } from "date-fns";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -52,6 +56,214 @@ const localizer = dateFnsLocalizer({
 })
 
 const DnDCalendar = withDragAndDrop(Calendar as any);
+
+interface CalendarToolbarProps {
+    date: Date;
+    view: string;
+    onView: (view: string) => void;
+    onNavigate: (action: 'PREV' | 'NEXT' | 'TODAY') => void;
+    isMobile?: boolean;
+}
+
+const CalendarToolbar = ({ date, view, onView, onNavigate, isMobile }: CalendarToolbarProps) => {
+
+    // Título dinámico según la vista activa
+    const getTitle = () => {
+        if (view === Views.DAY) {
+            return format(date, "EEEE d 'de' MMMM", { locale: es });
+        }
+        if (view === Views.WEEK) {
+            const start = startOfWeek(date, { locale: es });
+            const end = endOfWeek(date, { locale: es });
+            const sameMonth = format(start, 'M') === format(end, 'M');
+            if (sameMonth) {
+                return `${format(start, 'd')} – ${format(end, "d 'de' MMMM yyyy", { locale: es })}`;
+            }
+            return `${format(start, "d MMM", { locale: es })} – ${format(end, "d MMM yyyy", { locale: es })}`;
+        }
+        return format(date, 'MMMM yyyy', { locale: es });
+    };
+
+    const titleLabel = getTitle();
+
+    // Tira semanal: los 7 días de la semana que contiene la fecha actual
+    const weekStart = startOfWeek(date, { locale: es });
+    const today = new Date();
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
+        return d;
+    });
+    const SHORT_DAY = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+    const isToday = (d: Date) =>
+        d.getDate() === today.getDate() &&
+        d.getMonth() === today.getMonth() &&
+        d.getFullYear() === today.getFullYear();
+
+    const isActive = (d: Date) =>
+        d.getDate() === date.getDate() &&
+        d.getMonth() === date.getMonth() &&
+        d.getFullYear() === date.getFullYear();
+
+    const handleDayClick = (d: Date) => {
+        // Navegar a ese día y cambiar a vista Día
+        onView(Views.DAY);
+        // Comunicamos la fecha nueva como si el usuaro hubiese hecho click
+        // Reutilizamos el mecanismo de onNavigate pasando la fecha
+        // Como CalendarToolbar no tiene acceso a setDate directamente,
+        // usamos onNavigate con una referencia al día.
+        // La prop onNavigate espera 'PREV'|'NEXT'|'TODAY', así que
+        // exponemos un callback auxiliar via prop extendida.
+        (onNavigate as any)(d);
+    };
+
+    return (
+        <div className="flex flex-col mb-3 gap-0">
+
+            {/* ── MÓVIL: fila de controles + tira de días ── */}
+            <div className="md:hidden flex flex-col gap-2">
+
+                {/* Fila 1: [ ‹ ] [ › ]  ·  [ mes/año ]  ·  [ HOY ] [ Vista ▼ ] */}
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => onNavigate('PREV')}
+                            className="h-9 w-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm active:scale-95 transition-all"
+                            aria-label="Semana anterior"
+                        >
+                            <ChevronLeft size={18} className="text-slate-600" />
+                        </button>
+                        <button
+                            onClick={() => onNavigate('NEXT')}
+                            className="h-9 w-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm active:scale-95 transition-all"
+                            aria-label="Semana siguiente"
+                        >
+                            <ChevronRight size={18} className="text-slate-600" />
+                        </button>
+                    </div>
+
+                    {/* Mes y año en el centro, compacto */}
+                    <span className="text-sm font-bold text-slate-700 capitalize tracking-tight">
+                        {format(date, 'MMMM yyyy', { locale: es })}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => onNavigate('TODAY')}
+                            className="h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-slate-200 bg-white shadow-sm text-slate-600 active:scale-95 transition-all"
+                        >
+                            Hoy
+                        </button>
+                        <Select value={view} onValueChange={onView}>
+                            <SelectTrigger className="h-8 w-[76px] text-xs font-bold bg-white border-slate-200 shadow-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={Views.MONTH}>Mes</SelectItem>
+                                {!isMobile && <SelectItem value={Views.WEEK}>Semana</SelectItem>}
+                                <SelectItem value={Views.DAY}>Día</SelectItem>
+                                <SelectItem value={Views.AGENDA}>Agenda</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                {/* Fila 2: tira de 7 días estilo Google Calendar */}
+                <div className="flex items-center justify-between px-0.5">
+                    {weekDays.map((d, i) => {
+                        const active = isActive(d);
+                        const tod = isToday(d);
+                        return (
+                            <button
+                                key={i}
+                                onClick={() => handleDayClick(d)}
+                                className="flex flex-col items-center gap-0.5 flex-1 group"
+                                aria-label={format(d, "EEEE d 'de' MMMM", { locale: es })}
+                            >
+                                {/* Letra del día */}
+                                <span className={`text-[10px] font-semibold uppercase tracking-wider transition-colors ${active ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                    {SHORT_DAY[i]}
+                                </span>
+                                {/* Número del día con marcador */}
+                                <span className={`
+                                    w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-all
+                                    ${active
+                                        ? 'bg-indigo-600 text-white shadow-md'
+                                        : tod
+                                            ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-400'
+                                            : 'text-slate-700 group-hover:bg-slate-100 group-active:bg-slate-200'
+                                    }
+                                `}>
+                                    {format(d, 'd')}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* ── ESCRITORIO: barra original ── */}
+            <div className="hidden md:flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => onNavigate('TODAY')}
+                        className="h-8 px-3 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 border-slate-200 shadow-sm transition-all flex items-center gap-2"
+                        title="Volver al día de hoy"
+                    >
+                        <Clock size={14} />
+                        <span>Hoy</span>
+                    </Button>
+                    <div className="flex items-center bg-slate-50 p-0.5 rounded-lg border border-slate-200 shadow-sm">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onNavigate('PREV')}
+                            className="h-8 w-8 hover:bg-white hover:shadow-sm transition-all"
+                        >
+                            <ChevronLeft size={18} />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onNavigate('NEXT')}
+                            className="h-8 w-8 hover:bg-white hover:shadow-sm transition-all"
+                        >
+                            <ChevronRight size={18} />
+                        </Button>
+                    </div>
+                </div>
+
+                <h2 className="text-xl font-black text-slate-800 capitalize tracking-tight">
+                    {titleLabel}
+                </h2>
+
+                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-sm">
+                    {[
+                        { id: Views.MONTH, label: 'Mes' },
+                        { id: Views.WEEK, label: 'Semana' },
+                        { id: Views.DAY, label: 'Día' },
+                        { id: Views.AGENDA, label: 'Agenda' },
+                    ].map((v) => (
+                        <Button
+                            key={v.id}
+                            variant={view === v.id ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => onView(v.id)}
+                            className={`h-8 px-4 text-xs font-bold transition-all ${view === v.id
+                                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 hover:bg-white'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            {v.label}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const CustomEventComponent = ({ event, view, onReprogram }: { event: CalendarEvent, view?: string, onReprogram?: (e: CalendarEvent) => void }) => {
     if (event.type === 'block') {
@@ -372,6 +584,10 @@ const QuickStatusMenu = ({ event, onReprogram }: { event: CalendarEvent, onRepro
 export default function CalendarView() {
     const { isDemoMode, user } = useAuth();
     const professionalId = user?.id || null;
+
+    // SSR-safe mobile detection: empieza como false (igual que el servidor)
+    // Solo en el cliente, tras montar, detectamos el ancho real.
+    const [isMobile, setIsMobile] = useState(false);
     const [view, setView] = useState<any>(Views.WEEK);
     const [date, setDate] = useState(new Date());
 
@@ -383,8 +599,26 @@ export default function CalendarView() {
     const [pendingDragEvent, setPendingDragEvent] = useState<any>(null);
     const [showClickConflict, setShowClickConflict] = useState(false);
     const [pendingClickSlot, setPendingClickSlot] = useState<{ start: Date; end: Date } | null>(null);
+    const [showNonWorkingWarning, setShowNonWorkingWarning] = useState(false);
+    const [pendingNonWorkingSlot, setPendingNonWorkingSlot] = useState<{ start: Date; end: Date } | null>(null);
 
     const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'reprogram'>('create');
+
+    // Detección SSR-safe: solo corre en el cliente, sin hydration mismatch.
+    useEffect(() => {
+        const checkMobile = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            // Solo forzamos la vista a DAY la primera vez que se monta en mobile.
+            // Usamos una referencia para no pisar la elección del usuario después.
+            if (mobile) {
+                setView((prev: any) => prev === Views.WEEK ? Views.DAY : prev);
+            }
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     useEffect(() => {
         logToTerminal(`Cambio de fecha o vista. Modo actual: ${view}, Fecha focal: ${date.toISOString()}`);
@@ -465,11 +699,12 @@ export default function CalendarView() {
         return calendarEvents;
     }, [appointments, blocks, isDemoMode, view, date]);
 
-    // Calculate dynamic min/max hours based on availability AND events
+    // Calculate dynamic min/max hours based on total availability (global bounds)
     const { calendarMin, calendarMax } = useMemo(() => {
         let minHour = 24;
         let maxHour = 0;
 
+        // Usar TODA la disponibilidad configurada para determinar el rango global de la clínica
         if (availability && availability.length > 0) {
             availability.forEach(a => {
                 const startH = parseInt(a.start_time.split(':')[0]);
@@ -477,22 +712,24 @@ export default function CalendarView() {
                 if (startH < minHour) minHour = startH;
                 if (endH > maxHour) maxHour = endH;
             });
-        } else {
-            minHour = 8;
-            maxHour = 20;
         }
 
-        // Expand bounds if there are events outside the availability
-        events.forEach(e => {
-            const startH = e.start.getHours();
-            const endH = e.end.getHours();
-            if (startH < minHour) minHour = startH;
-            if (endH > maxHour) maxHour = endH;
-        });
+        // Expandir el rango si hay algún turno agendado fuera de este en cualquier día
+        if (events && events.length > 0) {
+            events.forEach(e => {
+                const startH = e.start.getHours();
+                const endH = e.end.getHours() + (e.end.getMinutes() > 0 ? 1 : 0);
+                if (startH < minHour) minHour = startH;
+                if (endH > maxHour) maxHour = endH;
+            });
+        }
 
-        // Add 1 hour padding at the bottom for visibility
+        // Fallback global si no hay nada configurado ni agendado
+        if (minHour === 24) minHour = 8;
+        if (maxHour === 0) maxHour = 20;
+
         return {
-            calendarMin: new Date(0, 0, 0, Math.max(0, minHour), 0, 0),
+            calendarMin: new Date(0, 0, 0, minHour, 0, 0),
             calendarMax: new Date(0, 0, 0, Math.min(24, maxHour + 1), 0, 0)
         };
     }, [availability, events]);
@@ -573,6 +810,20 @@ export default function CalendarView() {
     };
 
     const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
+        const dow = getDay(start);
+        const dayAvailability = availability?.filter(a => a.weekday === dow);
+        const hasAvailability = dayAvailability && dayAvailability.length > 0;
+
+        // Verificar si es un día completamente sin disponibilidad (ej: domingo)
+        if (!hasAvailability) {
+            // Mostramos el warning de día no laboral
+            // El usuario puede continuar igual si quiere agendar un turno excepcional
+            setPendingNonWorkingSlot({ start, end });
+            setShowNonWorkingWarning(true);
+            return;
+        }
+
+        // Día con disponibilidad: verificar colisiones de bloque o fuera de horario
         const hasCollision = detectCollision(start, end, blocks || [], availability || []);
         if (hasCollision) {
             setPendingClickSlot({ start, end });
@@ -649,7 +900,6 @@ export default function CalendarView() {
             };
         }
 
-        // Tint weekends or non-available days (only if not already blocked)
         if (!dayAvailability || dayAvailability.length === 0) {
             return {
                 className: "bg-non-working-day",
@@ -659,13 +909,90 @@ export default function CalendarView() {
         return {};
     };
 
-    return (
-        <div className={`w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col ${view === Views.MONTH ? 'h-[850px]' : 'h-auto'}`}>
+    const slotPropGetter = (date: Date) => {
+        const dow = getDay(date);
+        const dayAvailability = availability?.filter(a => a.weekday === dow);
 
+        // Si el día entero no tiene disponibilidad, todos sus slots se tiñen
+        if (!dayAvailability || dayAvailability.length === 0) {
+            return {
+                className: "bg-non-working-slot",
+                style: { backgroundColor: '#f8fafc' }
+            };
+        }
+
+        // Convertir la franja horaria a decimal (ej: 14:30 -> 14.5)
+        const hour = date.getHours();
+        const minute = date.getMinutes();
+        const timeNum = hour + minute / 60;
+
+        // Verificar si este slot entra en algún bloque de disponibilidad del día
+        const isWorkingHour = dayAvailability.some(a => {
+            const [startH, startM] = a.start_time.split(':').map(Number);
+            const [endH, endM] = a.end_time.split(':').map(Number);
+            const startNum = startH + startM / 60;
+            const endNum = endH + endM / 60;
+            return timeNum >= startNum && timeNum < endNum;
+        });
+
+        // Si la hora está fuera del horario laboral, teñir sutilmente
+        if (!isWorkingHour) {
+            return {
+                className: "bg-non-working-slot",
+                style: { backgroundColor: '#f8fafc' } // gris clarito (slate-50)
+            };
+        }
+
+        return {};
+    };
+
+    const handleNavigate = (action: 'PREV' | 'NEXT' | 'TODAY' | Date) => {
+        // Navegación directa a una fecha (desde la tira de días)
+        if (action instanceof Date) {
+            setDate(action);
+            return;
+        }
+        if (action === 'TODAY') {
+            setDate(new Date());
+            return;
+        }
+
+        const amount = action === 'NEXT' ? 1 : -1;
+        let newDate = new Date(date);
+
+        if (view === Views.MONTH) newDate = addMonths(date, amount);
+        else if (view === Views.WEEK) newDate = addWeeks(date, amount);
+        else if (view === Views.DAY) newDate = addDays(date, amount);
+        else if (view === Views.AGENDA) newDate = addMonths(date, amount);
+
+        setDate(newDate);
+    };
+
+    // Gestos de swipe para navegación nativa en móvil.
+    // Se aplican al wrapper EXTERNO para no bloquear el drag-and-drop interno del DnDCalendar.
+    const swipeHandlers = useSwipeable({
+        onSwipedLeft: () => handleNavigate('NEXT'),
+        onSwipedRight: () => handleNavigate('PREV'),
+        preventScrollOnSwipe: true,
+        trackMouse: false,
+        delta: 50, // mínimo 50px de recorrido para disparar la acción
+    });
+
+    return (
+        <div {...swipeHandlers} className={`w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col ${view === Views.MONTH ? 'h-[850px]' : 'h-auto'}`}>
+
+            <CalendarToolbar
+                date={date}
+                view={view}
+                onView={setView}
+                onNavigate={handleNavigate}
+                isMobile={isMobile}
+            />
 
             <div className="flex-1 min-h-0 w-full overflow-x-auto pb-4 custom-scrollbar">
-                <div className="min-w-[800px] h-full md:min-w-0">
+                <div className={`${(view === Views.WEEK || view === Views.MONTH) ? 'min-w-[800px]' : 'min-w-full'} h-full md:min-w-0`}>
                     <DnDCalendar
+                        toolbar={false}
                         style={{ height: '100%', width: '100%' }}
                         localizer={localizer}
                         events={events}
@@ -675,7 +1002,10 @@ export default function CalendarView() {
                         onNavigate={setDate}
                         culture="es"
                         defaultView={Views.WEEK}
-                        views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+                        views={isMobile
+                            ? [Views.MONTH, Views.DAY, Views.AGENDA]
+                            : [Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]
+                        }
                         view={view}
                         onView={setView}
                         messages={{
@@ -701,6 +1031,7 @@ export default function CalendarView() {
                         scrollToTime={new Date()}
                         className="rounded-lg overflow-hidden"
                         dayPropGetter={dayPropGetter}
+                        slotPropGetter={slotPropGetter}
                         components={{
                             event: ((props: any) => <CustomEventComponent {...props} view={view} onReprogram={handleReprogramMenuClick} />) as any
                         }}
@@ -739,6 +1070,42 @@ export default function CalendarView() {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Warning: día fuera del horario de atención (sin disponibilidad configurada) */}
+            <AlertDialog open={showNonWorkingWarning} onOpenChange={setShowNonWorkingWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertCircle size={18} className="text-amber-500" />
+                            Día no laboral
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Este día <strong>no está configurado como día de atención</strong> en tus ajustes.
+                            Podes agregar el turno de todas formas si es una excepción, pero no figurará dentro de tu horario habitual.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-3 sm:gap-2">
+                        <AlertDialogCancel
+                            className="min-h-[44px] sm:min-h-0"
+                            onClick={() => setPendingNonWorkingSlot(null)}
+                        >
+                            Cancelar
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (pendingNonWorkingSlot) {
+                                    proceedWithSlotSelection(pendingNonWorkingSlot.start, pendingNonWorkingSlot.end);
+                                    setPendingNonWorkingSlot(null);
+                                }
+                                setShowNonWorkingWarning(false);
+                            }}
+                            className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] sm:min-h-0"
+                        >
+                            Agregar turno de todas formas
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <AlertDialog open={showClickConflict} onOpenChange={setShowClickConflict}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -764,6 +1131,6 @@ export default function CalendarView() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }

@@ -55,35 +55,39 @@ export default function PatientSheet({ patient, open, onOpenChange, onEdit }: Pa
                 side="bottom"
                 className="w-full h-[90vh] md:h-full md:side-right md:max-w-md border-t md:border-l shadow-xl bg-slate-50/50 p-0 flex flex-col"
             >
-                <SheetHeader className="bg-white p-6 border-b shrink-0">
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                                <SheetTitle className="text-2xl font-bold text-slate-900">{patient.name}</SheetTitle>
-                                {patient.is_demo && (
-                                    <Badge className="bg-indigo-500 hover:bg-indigo-500 text-[9px] font-black uppercase tracking-widest px-1.5 h-5">Demo</Badge>
+                <SheetHeader className="bg-white p-4 md:p-6 border-b shrink-0 text-left">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <SheetTitle className="text-xl md:text-2xl font-bold text-slate-900 truncate">
+                                        {patient.name}
+                                    </SheetTitle>
+                                    {patient.is_demo && (
+                                        <Badge className="bg-indigo-500 hover:bg-indigo-500 text-[9px] font-black uppercase tracking-widest px-1.5 h-5 shrink-0">Demo</Badge>
+                                    )}
+                                </div>
+                                {patient.alias && (
+                                    <p className="text-sm text-slate-500 font-medium truncate">Alias: {patient.alias}</p>
                                 )}
                             </div>
-                            {patient.alias && (
-                                <p className="text-sm text-slate-500 font-medium">Alias: {patient.alias}</p>
-                            )}
-                            <div className="pt-1">
-                                {isLoadingBalance ? (
-                                    <div className="h-5 w-20 bg-slate-100 animate-pulse rounded"></div>
-                                ) : balanceData?.debt && balanceData.debt > 0 ? (
-                                    <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 hover:bg-red-50">
-                                        Adeuda: ${balanceData.debt.toLocaleString("es-AR")}
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
-                                        Al día
-                                    </Badge>
-                                )}
-                            </div>
+                            <Badge variant="outline" className="hidden md:inline-flex bg-indigo-50 text-indigo-700 border-indigo-100 px-2.5 py-0.5 shrink-0">
+                                Paciente
+                            </Badge>
                         </div>
-                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-100 px-2.5 py-0.5">
-                            Paciente
-                        </Badge>
+                        <div className="pt-1">
+                            {isLoadingBalance ? (
+                                <div className="h-5 w-20 bg-slate-100 animate-pulse rounded"></div>
+                            ) : balanceData?.debt && balanceData.debt > 0 ? (
+                                <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-200 hover:bg-red-50">
+                                    Adeuda: ${balanceData.debt.toLocaleString("es-AR")}
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
+                                    Al día
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                 </SheetHeader>
 
