@@ -56,7 +56,11 @@ export async function updateSession(request: NextRequest) {
 
     // Guard para otras páginas privadas
     if (!user) {
-        if (!request.nextUrl.pathname.startsWith('/login')) {
+        // Excluimos explícitamente rutas de auth y login
+        if (
+            !request.nextUrl.pathname.startsWith('/login') &&
+            !request.nextUrl.pathname.startsWith('/auth')
+        ) {
             const url = request.nextUrl.clone();
             url.pathname = '/login';
             return NextResponse.redirect(url);
