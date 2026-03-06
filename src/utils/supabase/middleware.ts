@@ -71,16 +71,26 @@ export async function updateSession(request: NextRequest) {
             request.nextUrl.pathname.startsWith('/caja');
 
         if (isInternalPage) {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('full_name')
-                .eq('id', user.id)
+            // Verificamos si es SuperAdmin antes de forzar onboarding
+            const { data: adminData } = await supabase
+                .from('platform_admins')
+                .select('user_id')
+                .eq('user_id', user.id)
                 .single();
 
-            if (!profile?.full_name) {
-                const url = request.nextUrl.clone();
-                url.pathname = '/onboarding';
-                return NextResponse.redirect(url);
+            // Si no es SuperAdmin, verificamos si completó su perfil profesional
+            if (!adminData) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('full_name')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!profile?.full_name) {
+                    const url = request.nextUrl.clone();
+                    url.pathname = '/onboarding';
+                    return NextResponse.redirect(url);
+                }
             }
         }
     }
