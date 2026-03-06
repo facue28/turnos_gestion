@@ -20,6 +20,13 @@ const eslintConfig = [
       "scripts/**",
       "supabase/**"
     ],
+<<<<<<< HEAD
+=======
+    rules: {
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+    }
+>>>>>>> develop
   }
 ];
 
