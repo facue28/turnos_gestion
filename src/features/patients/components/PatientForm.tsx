@@ -15,14 +15,16 @@ interface PatientFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     initialData?: PatientData | null;
+    onSubmit?: (data: PatientFormData) => void;
+    isPending?: boolean;
 }
 
-export default function PatientForm({ open, onOpenChange, initialData }: PatientFormProps) {
+export default function PatientForm({ open, onOpenChange, initialData, onSubmit, isPending: externalPending }: PatientFormProps) {
     const { user } = useAuth();
     const professionalId = user?.id || null;
     const { mutateAsync: createPatient, isPending: isCreating } = useCreatePatient(professionalId);
     const { mutateAsync: updatePatient, isPending: isUpdating } = useUpdatePatient(professionalId);
-    const isPending = isCreating || isUpdating;
+    const isPending = externalPending ?? (isCreating || isUpdating);
 
     const {
         register,
@@ -85,6 +87,11 @@ export default function PatientForm({ open, onOpenChange, initialData }: Patient
 
     const handleFormSubmit = async (data: PatientFormData) => {
         try {
+            if (onSubmit) {
+                onSubmit(data);
+                return;
+            }
+
             if (initialData) {
                 await updatePatient({ id: initialData.id, data });
             } else {
