@@ -33,7 +33,9 @@ export async function updatePasswordAction(password: string) {
         throw new Error(error.message);
     }
 
-    // Tras establecer la clave, revalidar y enviar al onboarding
+    // Cerramos la sesión en el servidor para forzar un login limpio
+    await supabase.auth.signOut();
     revalidatePath("/", "layout");
-    redirect("/onboarding");
+
+    return { success: true };
 }

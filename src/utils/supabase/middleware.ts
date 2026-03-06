@@ -44,7 +44,7 @@ export async function updateSession(request: NextRequest) {
             .from('platform_admins')
             .select('user_id')
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
 
         if (error || !data) {
             // No es Súper Admin → Redirigimos al Dashboard del profesional
@@ -80,7 +80,7 @@ export async function updateSession(request: NextRequest) {
                 .from('platform_admins')
                 .select('user_id')
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle();
 
             // Si no es SuperAdmin, verificamos si completó su perfil profesional
             if (!adminData) {

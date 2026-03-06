@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .from('platform_admins')
                     .select('user_id')
                     .eq('user_id', user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (mounted) {
                     setIsPlatformAdmin(!!data);

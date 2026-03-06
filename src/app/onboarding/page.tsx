@@ -27,13 +27,14 @@ export default function OnboardingPage() {
 
         try {
             const result = await completeOnboarding(formData);
-            if (result.success) {
-                // Redirigir al dashboard principal
-                router.push("/hoy");
+            if (result?.success) {
+                // Usamos window.location para forzar una recarga limpia al estado de "logueado"
+                // y limpiamos el middleware interno de la sesión caché
+                window.location.href = "/ajustes";
+                return; // Cortocircuito para que isLoading siga en true mientras navega
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
-        } finally {
             setIsLoading(false);
         }
     };
