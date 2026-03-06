@@ -5,6 +5,8 @@ import { Session, User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 
+import { signOutAction } from '@/app/actions/auth';
+
 interface AuthContextType {
     session: Session | null;
     user: User | null;
@@ -69,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (_event === 'SIGNED_OUT') {
                     setSession(null);
                     setUser(null);
-                    router.push('/login');
+                    // No redireccionamos aquí porque signOutAction ya hace el redirect
                 }
             }
         );
@@ -116,9 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = async () => {
         try {
             await supabase.auth.signOut();
-            router.push('/login');
+            await signOutAction();
         } catch (e) {
             console.error("Sign out error:", e);
+            // Si falla el servidor, intentamos forzar redirect
+            router.push('/login');
         }
     };
 
@@ -144,3 +148,4 @@ export const useAuth = () => {
     }
     return context;
 };
+
